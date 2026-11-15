@@ -1,1 +1,498 @@
-const app=document.getElementById('app');const data={"fr":[["🍎 Quel est ce fruit ?",["Une pomme","Une poire","Une fraise"],0],["Je ___ onze ans.",["suis","ai","est"],1],["🐘 Quel animal est-ce ?",["Un éléphant","Un cheval","Un mouton"],0],["Nous ___ à l’école.",["allez","allons","va"],1],["Hier, elle ___ un livre.",["a lu","lit","lira"],0],["Choisis la phrase correcte.",["Les enfants joue.","Les enfants jouent.","Les enfants joues."],1],["Le contraire de « généreux » est :",["avare","aimable","joyeux"],0],["Demain, nous ___ au musée.",["sommes allés","irons","allions"],1],["Si je pouvais, je ___ le monde.",["voyagerais","voyagerai","voyage"],0],["« Malgré » exprime :",["une opposition","une cause","un but"],0],["Quel est le synonyme de « pertinent » ?",["approprié","lointain","fragile"],0],["Il faut que tu ___ prêt.",["es","sois","seras"],1],["Bien qu’il ___ froid, nous sortons.",["fait","fasse","fera"],1],["« Néanmoins » signifie :",["cependant","donc","ensuite"],0],["Quelle phrase est correcte ?",["Elle s’est permise de partir.","Elle s’est permis de partir.","Elle s’est permet de partir."],1],["« À supposer que » introduit :",["une hypothèse","une certitude","une conséquence"],0],["« Il eût fallu » exprime :",["un regret dans un registre soutenu","un ordre présent","une habitude"],0],["« Faire fi de » signifie :",["ignorer volontairement","se souvenir de","imiter"],0],["Quelle figure atténue une idée par la négation du contraire ?",["La litote","La métaphore","L’allitération"],0],["« Peu s’en faut que » signifie :",["il a presque fallu que","il est impossible que","il faut rarement que"],0],["« Nonobstant » signifie :",["malgré","avant","grâce à"],0],["« Il n’en demeure pas moins que » sert à :",["maintenir une réserve ou une objection","introduire un exemple","annoncer une date"],0],["Une « aporie » est :",["une difficulté logique insoluble","une célébration","une comparaison"],0],["Quel énoncé emploie une concession ?",["Quand bien même il réussirait, le doute subsisterait.","Parce qu’il réussit, il sourit.","Il réussit puis part."],0]],"en":[["🐱 What animal is this?",["A cat","A duck","A dog"],0],["She ___ ten years old.",["am","is","are"],1],["🍌 Choose the fruit.",["Banana","Car","Chair"],0],["They ___ happy.",["is","am","are"],2],["Yesterday we ___ a film.",["watched","watch","will watch"],0],["Which sentence is correct?",["He don’t like apples.","He doesn’t like apples.","He doesn’t likes apples."],1],["The opposite of “quiet” is:",["noisy","gentle","slow"],0],["I have lived here ___ 2020.",["for","since","during"],1],["If I had time, I ___ more.",["read","would read","will reading"],1],["“Although” introduces:",["contrast","purpose","quantity"],0],["“Reliable” means:",["trustworthy","fragile","careless"],0],["She suggested ___ earlier.",["leave","leaving","to leaving"],1],["By Friday, they ___ the project.",["will have finished","will finishing","have finish"],0],["“Nevertheless” means:",["however","therefore","meanwhile"],0],["Choose the correct phrase.",["Despite of the rain","Despite the rain","Although the rain"],1],["Had I known, I ___ sooner.",["would act","would have acted","will act"],1],["“To scrutinize” means:",["to examine closely","to celebrate","to simplify"],0],["Rarely ___ such a sight.",["I have seen","have I seen","I saw have"],1],["“Ambivalent” describes:",["mixed feelings","complete certainty","strong dislike only"],0],["“A moot point” is:",["a debatable or practically irrelevant issue","a confirmed fact","a trivial object"],0],["“To prevaricate” means:",["to speak evasively","to calculate","to forgive"],0],["Not until later ___ the truth.",["did she discover","she discovered","she did discovered"],0],["“Equivocal” means:",["open to more than one interpretation","entirely certain","physically equal"],0],["“Insofar as” is closest to:",["to the extent that","in spite of","as soon as"],0]]};const levels=['A1','A2','B1','B2','C1','C2'];let profile=localStorage.getItem('lk_profile')||'',lang='',idx=0,answers=[];function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}function welcome(){app.innerHTML='<h2>👋 Choose your explorer</h2><p>Each child uses their own device.</p><label for="name">Explorer name</label><p><input id="name" maxlength="25" placeholder="Your first name" value="'+esc(profile)+'"></p><button class="primary" id="go">🚀 Let’s go!</button>';document.getElementById('go').onclick=()=>{profile=document.getElementById('name').value.trim().slice(0,25);if(!profile)return;localStorage.setItem('lk_profile',profile);home()}}function home(){app.innerHTML='<h2>✨ Hello, '+esc(profile)+'!</h2><p>Choose a language / Choisis une langue</p><div class="row"><button id="fr">🇫🇷 Français</button><button id="en">🇬🇧 English</button></div><p><small>Independent placement tests for each language.</small></p><button id="change">👤 Change explorer</button>';document.getElementById('fr').onclick=()=>choose('fr');document.getElementById('en').onclick=()=>choose('en');document.getElementById('change').onclick=()=>{profile='';localStorage.removeItem('lk_profile');welcome()}}function choose(l){lang=l;const fr=l==='fr',prior=JSON.parse(localStorage.getItem('lk_result_'+l)||'null');app.innerHTML='<div class="big">'+(fr?'🇫🇷🎨':'🇬🇧🌍')+'</div><h2>'+(fr?'Ton aventure en français':'Your English adventure')+'</h2><p>'+(fr?'24 questions, de A1 à C2.':'24 questions, from A1 to C2.')+'</p>'+(prior?'<p class="tag">🏆 '+prior.level+' · '+prior.score+'/24</p>':'')+'<p><button class="primary" id="start">'+(fr?'🚀 Commencer mon évaluation':'🚀 Start my assessment')+'</button></p><button id="back">← '+(fr?'Retour':'Back')+'</button>';document.getElementById('start').onclick=()=>{idx=0;answers=[];question()};document.getElementById('back').onclick=home}function question(){const q=data[lang][idx],fr=lang==='fr',lv=Math.floor(idx/4);app.innerHTML='<div class="row" style="justify-content:space-between"><b>Question '+(idx+1)+'/24</b><span class="tag">⭐ '+levels[lv]+'</span></div><div class="progress"><div style="width:'+((idx+1)/24*100)+'%"></div></div><div class="big">'+['🌱','🌻','🦋','🚀','🌌','👑'][lv]+'</div><h2>'+esc(q[0])+'</h2><div id="options"></div><p id="feedback" role="status"></p><button class="primary" disabled id="next">'+(fr?'Suivant →':'Next →')+'</button>';q[1].forEach((option,i)=>{const b=document.createElement('button');b.className='choice';b.textContent=String.fromCharCode(65+i)+'. '+option;b.onclick=()=>{if(answers.length>idx)return;answers.push(i===q[2]);document.querySelectorAll('.choice').forEach((el,j)=>{el.disabled=true;if(j===q[2])el.style.borderColor='#16a06c';else if(j===i)el.style.borderColor='#e05266'});document.getElementById('feedback').textContent=i===q[2]?(fr?'🌟 Bravo !':'🌟 Great!'):(fr?'Bonne réponse : ':'Correct answer: ')+q[1][q[2]];document.getElementById('next').disabled=false};document.getElementById('options').appendChild(b)});document.getElementById('next').onclick=()=>{idx++;idx<24?question():result()}}function result(){const fr=lang==='fr',score=answers.filter(Boolean).length;let level='A1';for(let n=1;n<=6;n++){if(answers.slice(0,n*4).every(Boolean))level=levels[n-1];else break}localStorage.setItem('lk_result_'+lang,JSON.stringify({level,score}));app.innerHTML='<div class="big">🏆🎉</div><h2>'+(fr?'Bravo, ':'Well done, ')+esc(profile)+'!</h2><h1>'+level+'</h1><p>'+score+' / 24</p><p>'+(fr?'Niveau de départ indicatif, non certifié.':'Indicative starting level, not a certification.')+'</p><button class="primary" id="again">'+(fr?'Recommencer':'Try again')+'</button> <button id="home">🏠 Home</button>';document.getElementById('again').onclick=()=>choose(lang);document.getElementById('home').onclick=home}if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));profile?home():welcome();
+const app = document.getElementById('app');
+const originalPlacement = {"fr":[["🍎 Quel est ce fruit ?",["Une pomme","Une poire","Une fraise"],0],["Je ___ onze ans.",["suis","ai","est"],1],["🐘 Quel animal est-ce ?",["Un éléphant","Un cheval","Un mouton"],0],["Nous ___ à l’école.",["allez","allons","va"],1],["Hier, elle ___ un livre.",["a lu","lit","lira"],0],["Choisis la phrase correcte.",["Les enfants joue.","Les enfants jouent.","Les enfants joues."],1],["Le contraire de « généreux » est :",["avare","aimable","joyeux"],0],["Demain, nous ___ au musée.",["sommes allés","irons","allions"],1],["Si je pouvais, je ___ le monde.",["voyagerais","voyagerai","voyage"],0],["« Malgré » exprime :",["une opposition","une cause","un but"],0],["Quel est le synonyme de « pertinent » ?",["approprié","lointain","fragile"],0],["Il faut que tu ___ prêt.",["es","sois","seras"],1],["Bien qu’il ___ froid, nous sortons.",["fait","fasse","fera"],1],["« Néanmoins » signifie :",["cependant","donc","ensuite"],0],["Quelle phrase est correcte ?",["Elle s’est permise de partir.","Elle s’est permis de partir.","Elle s’est permet de partir."],1],["« À supposer que » introduit :",["une hypothèse","une certitude","une conséquence"],0],["« Il eût fallu » exprime :",["un regret dans un registre soutenu","un ordre présent","une habitude"],0],["« Faire fi de » signifie :",["ignorer volontairement","se souvenir de","imiter"],0],["Quelle figure atténue une idée par la négation du contraire ?",["La litote","La métaphore","L’allitération"],0],["« Peu s’en faut que » signifie :",["il a presque fallu que","il est impossible que","il faut rarement que"],0],["« Nonobstant » signifie :",["malgré","avant","grâce à"],0],["« Il n’en demeure pas moins que » sert à :",["maintenir une réserve ou une objection","introduire un exemple","annoncer une date"],0],["Une « aporie » est :",["une difficulté logique insoluble","une célébration","une comparaison"],0],["Quel énoncé emploie une concession ?",["Quand bien même il réussirait, le doute subsisterait.","Parce qu’il réussit, il sourit.","Il réussit puis part."],0]],"en":[["🐱 What animal is this?",["A cat","A duck","A dog"],0],["She ___ ten years old.",["am","is","are"],1],["🍌 Choose the fruit.",["Banana","Car","Chair"],0],["They ___ happy.",["is","am","are"],2],["Yesterday we ___ a film.",["watched","watch","will watch"],0],["Which sentence is correct?",["He don’t like apples.","He doesn’t like apples.","He doesn’t likes apples."],1],["The opposite of “quiet” is:",["noisy","gentle","slow"],0],["I have lived here ___ 2020.",["for","since","during"],1],["If I had time, I ___ more.",["read","would read","will reading"],1],["“Although” introduces:",["contrast","purpose","quantity"],0],["“Reliable” means:",["trustworthy","fragile","careless"],0],["She suggested ___ earlier.",["leave","leaving","to leaving"],1],["By Friday, they ___ the project.",["will have finished","will finishing","have finish"],0],["“Nevertheless” means:",["however","therefore","meanwhile"],0],["Choose the correct phrase.",["Despite of the rain","Despite the rain","Although the rain"],1],["Had I known, I ___ sooner.",["would act","would have acted","will act"],1],["“To scrutinize” means:",["to examine closely","to celebrate","to simplify"],0],["Rarely ___ such a sight.",["I have seen","have I seen","I saw have"],1],["“Ambivalent” describes:",["mixed feelings","complete certainty","strong dislike only"],0],["“A moot point” is:",["a debatable or practically irrelevant issue","a confirmed fact","a trivial object"],0],["“To prevaricate” means:",["to speak evasively","to calculate","to forgive"],0],["Not until later ___ the truth.",["did she discover","she discovered","she did discovered"],0],["“Equivocal” means:",["open to more than one interpretation","entirely certain","physically equal"],0],["“Insofar as” is closest to:",["to the extent that","in spite of","as soon as"],0]]};
+
+const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const placementCounts = [9, 9, 8, 8, 8, 8];
+const sessionSize = 10;
+
+// Each situation carries an infinitive, a past participle, and a setting.
+const situations = {
+  fr: [
+    ['dessiner un dragon', 'dessiné un dragon', 'dans la cour'],
+    ['lire le début du roman', 'lu le début du roman', 'à la bibliothèque'],
+    ['préparer des crêpes', 'préparé des crêpes', 'dans la cuisine'],
+    ['observer les étoiles', 'observé les étoiles', 'sur la terrasse'],
+    ['construire une cabane', 'construit une cabane', 'dans le jardin'],
+    ['planter des radis', 'planté des radis', 'au potager'],
+    ['inventer une histoire', 'inventé une histoire', 'dans le salon'],
+    ['enregistrer une chanson', 'enregistré une chanson', 'au studio'],
+    ['résoudre une énigme', 'résolu une énigme', 'au club de jeux'],
+    ['ranger les pinceaux', 'rangé les pinceaux', 'à l’atelier'],
+    ['photographier les oiseaux', 'photographié les oiseaux', 'au parc'],
+    ['réparer un vélo', 'réparé un vélo', 'dans le garage'],
+    ['coller les affiches', 'collé les affiches', 'dans le couloir'],
+    ['répéter une scène', 'répété une scène', 'au théâtre'],
+    ['tester un robot', 'testé un robot', 'au laboratoire'],
+    ['trier les graines', 'trié les graines', 'sous la serre'],
+    ['peindre une fresque', 'peint une fresque', 'au centre de loisirs'],
+    ['chercher un indice', 'cherché un indice', 'près du moulin'],
+    ['apprendre les règles du jeu', 'appris les règles du jeu', 'sous le préau'],
+    ['préparer le matériel', 'préparé le matériel', 'dans le gymnase'],
+    ['écrire une carte', 'écrit une carte', 'dans la classe'],
+    ['choisir un costume', 'choisi un costume', 'dans les coulisses'],
+    ['compter les coquillages', 'compté les coquillages', 'sur la plage'],
+    ['comparer les empreintes', 'comparé les empreintes', 'près de la rivière'],
+    ['fabriquer un cerf-volant', 'fabriqué un cerf-volant', 'au camp'],
+    ['classer les cartes', 'classé les cartes', 'à la maison'],
+    ['présenter une maquette', 'présenté une maquette', 'au musée'],
+    ['étiqueter les boîtes', 'étiqueté les boîtes', 'dans la réserve'],
+    ['assembler un puzzle', 'assemblé un puzzle', 'dans la salle de jeux'],
+    ['noter les résultats', 'noté les résultats', 'dans la salle de sciences'],
+    ['décorer les guirlandes', 'décoré les guirlandes', 'à la salle des fêtes'],
+    ['enrouler la corde', 'enroulé la corde', 'au terrain de sport'],
+    ['réviser une leçon', 'révisé une leçon', 'chez Lina'],
+    ['préparer un exposé', 'préparé un exposé', 'chez Sami'],
+    ['dessiner une carte', 'dessiné une carte', 'au refuge']
+  ],
+  en: [
+    ['draw a dragon', 'drawn a dragon', 'in the playground'],
+    ['read the first chapter', 'read the first chapter', 'at the library'],
+    ['make pancakes', 'made pancakes', 'in the kitchen'],
+    ['watch the stars', 'watched the stars', 'on the balcony'],
+    ['build a den', 'built a den', 'in the garden'],
+    ['plant radishes', 'planted radishes', 'in the vegetable patch'],
+    ['invent a story', 'invented a story', 'in the living room'],
+    ['record a song', 'recorded a song', 'in the studio'],
+    ['solve a riddle', 'solved a riddle', 'at the games club'],
+    ['tidy the brushes', 'tidied the brushes', 'in the workshop'],
+    ['photograph birds', 'photographed birds', 'in the park'],
+    ['fix a bike', 'fixed a bike', 'in the garage'],
+    ['put up the posters', 'put up the posters', 'in the hall'],
+    ['rehearse a scene', 'rehearsed a scene', 'at the theatre'],
+    ['test a robot', 'tested a robot', 'in the lab'],
+    ['sort the seeds', 'sorted the seeds', 'in the greenhouse'],
+    ['paint a mural', 'painted a mural', 'at the youth centre'],
+    ['look for a clue', 'looked for a clue', 'near the mill'],
+    ['learn the rules', 'learned the rules', 'under the shelter'],
+    ['prepare the equipment', 'prepared the equipment', 'in the gym'],
+    ['write a card', 'written a card', 'in the classroom'],
+    ['choose a costume', 'chosen a costume', 'backstage'],
+    ['count the shells', 'counted the shells', 'on the beach'],
+    ['compare the footprints', 'compared the footprints', 'by the river'],
+    ['make a kite', 'made a kite', 'at camp'],
+    ['organise the cards', 'organised the cards', 'at home'],
+    ['present a model', 'presented a model', 'at the museum'],
+    ['label the boxes', 'labelled the boxes', 'in the storeroom'],
+    ['finish a jigsaw', 'finished a jigsaw', 'in the playroom'],
+    ['write down the results', 'written down the results', 'in the science room'],
+    ['hang the decorations', 'hung the decorations', 'at the community hall'],
+    ['coil the rope', 'coiled the rope', 'on the sports field'],
+    ['revise a lesson', 'revised a lesson', 'at Lina’s house'],
+    ['prepare a talk', 'prepared a talk', 'at Sami’s house'],
+    ['draw a map', 'drawn a map', 'at the shelter']
+  ]
+};
+
+// Ten targeted constructions per level. Each starts with the correct option,
+// followed by two distractors. The app shuffles the displayed answers.
+const patterns = {
+  fr: [
+    [
+      ['Pour ~, je ___ prêt.', 'suis|es|est', 'Avec « je », on dit « je suis ».'],
+      ['Pour ~, tu ___ le matériel.', 'as|a|ai', 'Avec « tu », on dit « tu as ».'],
+      ['Lina et Sami ___ envie de ~.', 'ont|a|avez', 'Deux personnes correspondent à « ils ont ».'],
+      ['___ début, on se retrouve @ pour ~.', 'Au|À la|Aux', '« À + le » devient « au ».'],
+      ['On va ___ @.', '~|^|à ~', 'Après « on va », utilise l’infinitif.'],
+      ['Nous ___ @ pour ~.', 'sommes|êtes|sont', 'Avec « nous », on dit « nous sommes ».'],
+      ['Vous ___ ~ ensemble.', 'pouvez|peux|peuvent', 'Avec « vous », on dit « vous pouvez ».'],
+      ['Pour ~, ___ avec moi ! (À une personne.)', 'viens|venons|venez', 'À une personne que tu tutoies, dis « viens ».'],
+      ['C’est ici ___ nous allons ~.', 'que|qui|quand', 'On met le lieu en valeur avec « c’est ici que ».'],
+      ['Je ne veux ___ ~ maintenant.', 'pas|très|aussi', 'La négation se construit avec « ne … pas ».']
+    ],
+    [
+      ['Hier, on a ___ @.', '^|~|fait de', 'Le passé composé se forme ici avec « a » et le participe passé.'],
+      ['Demain, vous ___ ~ @.', 'allez|êtes|avez', 'Pour parler d’un projet, utilise « aller » + infinitif.'],
+      ['On a commencé à ~ il y a dix minutes et on continue. On y travaille ___ dix minutes.', 'depuis|pendant|dans', '« Depuis » indique une durée qui continue au présent.'],
+      ['Il faut ___ @ avant midi.', '~|^|aller de', 'Après « il faut », un verbe peut se mettre à l’infinitif.'],
+      ['Samedi dernier, Lina ___ arrivée tôt pour ~.', 'est|a|va', 'Au passé composé, « arriver » se conjugue avec « être ».'],
+      ['On se retrouve @ ___ ~, avec cet objectif précis.', 'pour|depuis|malgré', '« Pour » + infinitif exprime le but.'],
+      ['Lina est restée @ ___ voulait ~.', 'parce qu’elle|pour qu’elle|bien qu’elle', '« Parce que » introduit la cause.'],
+      ['Tu as fini ? Oui, j’ai déjà ___ @.', '^|~|être', 'Après « j’ai » au passé composé, mets le participe passé.'],
+      ['La semaine prochaine, nous ___ ~ @.', 'pourrons|avons pu|pouvions', '« Pourrons » marque le futur.'],
+      ['Sami a oublié ___ venir @ pour ~.', 'de|à|pour', 'On dit « oublier de faire quelque chose ».']
+    ],
+    [
+      ['Chaque mercredi, nous ___ @ pour ~. C’était notre habitude.', 'allions|allons|irons', 'L’imparfait décrit une habitude passée.'],
+      ['Si j’avais plus de temps, je ___ ~ @.', 'pourrais|pourrai|peux', '« Si » + imparfait appelle ici le conditionnel.'],
+      ['Les amis avec ___ Lina va ~ se retrouvent @.', 'qui|dont|que', 'Après « avec », utilise « qui » pour parler de personnes.'],
+      ['Je lui ai demandé ___ elle voulait ~ avec nous.', 'si|dont|que de', 'Une question indirecte à réponse oui/non commence par « si ».'],
+      ['Nous avons réussi à ~ ___ l’aide de notre équipe.', 'grâce à|bien que|pour que', '« Grâce à » introduit ici une cause positive.'],
+      ['Avant de quitter les lieux, Sami avait déjà ___ @.', '^|~|fait pour', '« Avait » + participe passé forme le plus-que-parfait.'],
+      ['C’est le projet ___ on parle avant de ~ @.', 'dont|qui|où', 'On parle « de » quelque chose, d’où le relatif « dont ».'],
+      ['Lina et Sami se sont parlé avant de ~. À qui Lina a-t-elle parlé ?', 'À Sami|À personne|Au public', '« Se parler » indique ici une action réciproque.'],
+      ['Le lieu ___ on se retrouve pour ~ est indiqué sur le plan.', 'où|dont|quel', 'Le relatif « où » renvoie à un lieu.'],
+      ['À peine arrivé @, Sami s’est mis ___ ~.', 'à|sur|chez', 'On dit « se mettre à » + infinitif.']
+    ],
+    [
+      ['Bien qu’il ___ tard, Lina veut encore ~ @.', 'soit|est|sera', '« Bien que » est suivi du subjonctif.'],
+      ['Pourvu que nous ___ ~ @ avant la fermeture !', 'puissions|pourrons|pouvons', '« Pourvu que » appelle le subjonctif.'],
+      ['Si l’équipe avait été prévenue, elle ___ pu ~ @.', 'aurait|aura|avait', 'Un fait passé imaginaire s’exprime ici au conditionnel passé.'],
+      ['Lina est partie @ sans que ses amis le ___. Elle voulait ~ seule.', 'sachent|savent|sauront', '« Sans que » est suivi du subjonctif.'],
+      ['Sami a choisi de ~ @, quitte à décaler sa pause. Que signifie « quitte à » ?', 'En acceptant le risque de|Grâce au fait de|Pour empêcher de', '« Quitte à » présente un coût ou un risque accepté.'],
+      ['On pourra ~ @, à condition que le lieu ___ ouvert.', 'reste|restera|resté', '« À condition que » demande le subjonctif.'],
+      ['Il n’est pas certain que l’équipe ___ déjà ^ @.', 'ait|a|aura', 'Après « il n’est pas certain que », utilise le subjonctif.'],
+      ['Nous voulions ~ @. Or l’accès était fermé. Que signale « or » ?', 'Un fait qui change le raisonnement|La durée exacte du projet|Une conséquence attendue', '« Or » introduit un fait qui modifie l’argumentation.'],
+      ['On doit ~ @ avant midi, faute de quoi le lieu fermera. Quel est le lien logique ?', 'Une conséquence si l’on ne respecte pas le délai|Une action déjà accomplie|Un exemple sans rapport', '« Faute de quoi » signifie « sans cela ».'],
+      ['Lina a tout préparé afin que Sami ___ ~ @.', 'puisse|peut|pourra', '« Afin que » exprime le but et introduit le subjonctif.']
+    ],
+    [
+      ['On a déjà ^ @, encore faut-il expliquer comment. Quel rôle joue « encore faut-il » ?', 'Ajouter une exigence|Garantir la réussite|Annuler le fait précédent', 'Cette tournure ajoute une condition ou une obligation.'],
+      ['N’eût été la pluie, on aurait pu ~ @. Que comprend-on ?', 'La pluie a empêché le projet|La pluie a facilité le projet|La pluie est sans rapport', '« N’eût été » signifie ici « sans ».'],
+      ['Il semble que l’équipe ___ ^ @. Quelle tournure maintient l’incertitude ?', 'ait|a|aura', 'Le subjonctif passé marque ici le caractère incertain du fait.'],
+      ['Lina a certes ^ @, mais elle a dû modifier son plan. Quel rôle joue « certes » ?', 'Concéder un fait avant une réserve|Présenter la cause unique|Garantir la suite', '« Certes … mais » reconnaît un point avant de le nuancer.'],
+      ['Il ne suffit pas de ~ @ pour que le projet soit réussi. Qu’implique cette phrase ?', 'Cette action ne garantit pas à elle seule la réussite|Cette action fait toujours échouer le projet|Cette action est déjà réussie', 'Une condition insuffisante ne permet pas de garantir le résultat.'],
+      ['Sami veut ~ @, pour autant que le règlement le permette. Quel sens a la dernière partie ?', 'Sous réserve que le règlement l’autorise|Le règlement l’interdit déjà|Même si le règlement l’interdit', '« Pour autant que » exprime ici une condition.'],
+      ['Nous avons ^ @, si bien que l’équipe a pu passer à la suite. Quel est le rôle de « si bien que » ?', 'Introduire un résultat|Donner le but initial|Décrire une condition fictive', '« Si bien que » introduit une conséquence.'],
+      ['Lina a beau avoir ^ @, le jury veut des preuves. Qu’est-ce qui est sous-entendu ?', 'Son action ne suffit pas à convaincre le jury|Le jury a déjà approuvé sa méthode|Le jury lui a demandé de renoncer', '« Avoir beau » oppose un effort à un résultat qui ne suit pas.'],
+      ['« On a ^ @, à ceci près qu’on a dû modifier la dernière étape. » Que fait la fin de la phrase ?', 'Elle restreint la portée de la première affirmation|Elle précise l’heure|Elle reprend la première affirmation sans nuance', '« À ceci près que » introduit une exception ou une réserve.'],
+      ['« Quand bien même il faudrait ~ @, nous maintiendrions notre projet. » Quel sens a le début ?', 'Même dans cette hypothèse|Parce que le fait est avéré|Dès que le fait sera confirmé', '« Quand bien même » marque une concession hypothétique.']
+    ],
+    [
+      ['Lina prétend avoir ^ @. Quel choix indique une distance à l’égard de son affirmation ?', 'Elle dit l’avoir fait, sans que ce soit confirmé|Elle prouve l’avoir fait|Elle nie l’avoir fait', '« Prétend » marque une prise de distance vis-à-vis de l’affirmation.'],
+      ['« Ce n’est pas rien d’avoir ^ @ ! » Quelle intention est la plus plausible ?', 'Souligner la difficulté ou le mérite|Minimiser explicitement la réussite|Donner un ordre', 'Cette litote valorise l’accomplissement en niant qu’il soit négligeable.'],
+      ['« Sous prétexte de ~ @, Sami a évité la réunion. » Quelle attitude suggère « sous prétexte » ?', 'Le narrateur doute de la sincérité du motif|Le narrateur confirme le motif|Le narrateur ignore si la réunion est prévue', '« Sous prétexte de » présente une justification jugée peu convaincante.'],
+      ['« On ne saurait déduire de ce seul rapport que Lina a ^ @. » Quelle nuance porte « ne saurait » ?', 'Il serait injustifié de tirer cette conclusion|Il serait obligatoire de la tirer|Elle est confirmée par le rapport', '« Ne saurait » exprime ici une impossibilité de principe.'],
+      ['« Et de conclure que l’on pourrait ~ @ ! » Quel effet produit « et de conclure » ?', 'Introduire vivement une réaction dans le récit|Énoncer une obligation légale|Revenir à un événement antérieur sans lien', 'L’infinitif narratif en « et de » rend une réaction plus vive.'],
+      ['Lina assure avoir ^ @. Sami répond : « C’est du moins ce qu’elle dit. » Quelle nuance apporte-t-il ?', 'Il rappelle que l’information repose sur sa seule parole|Il apporte une preuve indépendante|Il confirme sa présence sur place', '« Du moins » restreint ici la portée de ce qu’on peut affirmer.'],
+      ['« Que l’on ait ^ @, nul ne le conteste. » Que reprend « le » ?', 'L’ensemble du fait introduit par « que »|Le lieu uniquement|La personne qui parle', 'Le pronom neutre « le » peut reprendre toute une proposition.'],
+      ['« Encore eût-il fallu pouvoir ~ @. » Quelle lecture est la plus plausible ?', 'Une condition nécessaire n’a pas été satisfaite|Une réussite est présentée comme certaine|Une consigne est donnée directement', 'Cette tournure soutenue présente une condition préalable restée insatisfaite.'],
+      ['« Pour ~ @, encore convient-il de s’en donner les moyens. » Quelle fonction a la deuxième partie ?', 'Rappeler une condition pratique|Rejeter l’objectif|Situer le récit dans le passé', 'L’inversion « encore convient-il » attire l’attention sur un préalable.'],
+      ['« Lina a ^ @ ou, pour être plus précis, elle y a commencé le travail. » Quel mécanisme est employé ?', 'Une reformulation qui réduit la portée de l’affirmation|Une répétition strictement équivalente|Un changement de sujet sans lien', '« Pour être plus précis » introduit ici une rectification.']
+    ]
+  ],
+  en: [
+    [
+      ['I ___ ready to ~ @.', 'am|is|are', 'Use “am” with “I”.'],
+      ['Lina ___ here to ~ @.', 'is|am|are', 'Use “is” with “she” or one person’s name.'],
+      ['Lina and Sami ___ going to ~ @.', 'are|am|is', 'Use “are” with “they” or two people.'],
+      ['Can Sami ___ @ today?', '~|will ~|to ~', 'After “can”, use the base form of the verb.'],
+      ['I want ___ @.', 'to ~|will ~|~', 'Use “want to” before another verb.'],
+      ['Lina has the tools. ___ has them to ~ @.', 'She|They|You', 'Use “she” for Lina in this sentence.'],
+      ['Sami and I are going to ~ @. ___ are a team.', 'We|He|I', '“Sami and I” can be replaced by “we”.'],
+      ['___ Lina want to ~ @?', 'Does|Do|Are', 'Use “does” for a question about what one person wants.'],
+      ['Come with ___ to ~ @, please!', 'me|I|my', 'Use “me” after “with” when referring to yourself.'],
+      ['We ___ not going to ~ @ today.', 'are|is|am', 'Say “we are not” for this negative statement.']
+    ],
+    [
+      ['We have already ___ @.', '^|to ~|will ~', 'Use “have” plus the past participle.'],
+      ['Tomorrow, I ___ going to ~ @.', 'am|was|were', 'Use “am going to” here for a future plan.'],
+      ['Yesterday, Lina ___ able to ~ @.', 'was|is|were', 'Use “was” for one person in the past.'],
+      ['When Sami was six, he ___ already ~ on his own.', 'could|can|will', '“Could” expresses an ability in the past.'],
+      ['Bring the kit ___ you want to ~ @. You will need it.', 'if|but|until', '“If” introduces a condition.'],
+      ['They could not ~ @ ___ the door was locked.', 'because|but|although', '“Because” tells us why they could not do it.'],
+      ['Lina ___ not want to ~ @ this morning.', 'does|do|are', 'Use “does not” with “she” or a singular name.'],
+      ['___ ~ @ today! That is my suggestion for both of us.', 'Let’s|We did|We have', 'Use “let’s” plus the base verb to make a joint suggestion.'],
+      ['Sami needs ___ @ before noon.', 'to ~|will ~|~', 'Use “needs to” before another verb.'],
+      ['We will ~ @ after we ___ lunch.', 'have|will have|having', 'After time words such as “after”, use present simple here for a future event.']
+    ],
+    [
+      ['If I had more time, I ___ ~ @.', 'would|will|did', 'Use “would” for the result of this imaginary situation.'],
+      ['When they arrived, Lina had already ___ @.', '^|to ~|could ~', '“Had” plus the past participle places one past event before another.'],
+      ['Sami asked Lina ___ she wanted to ~ @ with him.', 'whether|what|where', 'Use “whether” for an indirect yes-or-no question.'],
+      ['Lina is the friend ___ helped me ~ @.', 'who|whose|where', '“Who” refers to the person who did the action.'],
+      ['We have been trying to ~ @ ___ Monday.', 'since|for|during', 'Use “since” before the point when an action began.'],
+      ['Sami suggested ___ together to ~ @.', 'working|to working|work', 'Use the -ing form after “suggested” when there is no new subject.'],
+      ['Sami, ___ idea it was to ~ @, brought the tools.', 'whose|who|where', '“Whose” shows that the idea belonged to Sami.'],
+      ['Neither Lina nor Sami wanted to ~ @. Who wanted to do it?', 'Neither of them|Both of them|Only Lina', '“Neither … nor” excludes both people.'],
+      ['We used ___ @ every week, before our timetable changed.', 'to ~|will ~|~', 'Use “used to” and the base form to describe a past habit.'],
+      ['You ___ bring your own kit to ~ @. There is one you can borrow.', 'do not have to|must not|cannot', '“Do not have to” means that something is optional.']
+    ],
+    [
+      ['Had we left earlier, we ___ been able to ~ @.', 'would have|will have|would be', 'This third conditional uses “would have” to describe an imagined past result.'],
+      ['Despite ___ @, Lina came back to help.', 'having ^|she had ^|have ^', 'Use a noun or -ing form after “despite”.'],
+      ['By this time tomorrow, we will ___ @.', 'have ^|to ~|having ^', '“Will have” plus the past participle marks completion by a future point.'],
+      ['Sami had the instructions, so he ___ have known how to ~ @. He still pressed the wrong button.', 'should|cannot|must not', '“Should have known” expresses what could reasonably have been expected.'],
+      ['You can ~ @ provided that you follow the rules. What does “provided that” introduce?', 'A condition|A reason this is impossible|A time in the past', '“Provided that” means “on condition that”.'],
+      ['We ___ have ^ @, but we chose not to.', 'could|must|will', '“Could have” presents a past possibility that was not taken.'],
+      ['We agreed to ~ @, even though the plan would cost more. What is the relationship between the ideas?', 'We accepted a disadvantage|The higher cost was our goal|The plan became cheaper', '“Even though” signals a contrast with an accepted fact.'],
+      ['The teacher insisted that every group ___ @ before leaving.', '~|will ~|to ~', 'A formal mandative clause can use the base verb after “insisted that”.'],
+      ['No sooner had Sami ___ @ than the bell rang.', '^|to ~|would ~', '“No sooner had” takes a past participle and is paired with “than”.'],
+      ['Sami wishes he ___ @ yesterday.', 'had ^|will ~|has ^', '“Wish” plus past perfect expresses regret about the past.']
+    ],
+    [
+      ['Lina did ~ @. That said, she had to revise her plan. What does “that said” do?', 'Introduce a qualification|Repeat the previous claim|State a certain consequence', '“That said” acknowledges the preceding point before a qualification.'],
+      ['Were the room available, we could ~ @. What does the first clause express?', 'An imagined condition|A confirmed fact|A past instruction', '“Were …” is a formal equivalent of “if … were”.'],
+      ['Sami claims to have ^ @. What does “claims” allow the writer to do?', 'Report a statement without vouching for it|Confirm the statement independently|Prove the statement false', '“Claims” attributes the statement and leaves its truth open.'],
+      ['Lina did not promise to ~ @. What can we conclude with certainty?', 'She made no such promise|She promised never to do it|She definitely did not do it', 'Negating the promise does not tell us whether the action happened.'],
+      ['Far from being unable to ~ @, Sami taught the others how to do it. What does “far from” do?', 'Strongly reject the stated description|Express physical distance|Confirm the stated inability', '“Far from” dismisses the description that follows it.'],
+      ['It is one thing to ~ @ and another to teach someone how. Which distinction is made?', 'Doing the task differs from explaining how to do it|Explaining is impossible|The task has two locations', '“It is one thing … and another …” separates two abilities or situations.'],
+      ['Sami said he had ^ @, whatever the others might think. What does the final clause indicate?', 'Their views do not change his statement|They agree with him|They have given him an instruction', '“Whatever …” makes the statement independent of others’ views.'],
+      ['Only after Lina had ^ @ did she notice the mistake. When did she notice it?', 'After completing the action|Before starting|While choosing the location', '“Only after” emphasises the point at which something became possible or happened.'],
+      ['Sami arrived @ with a view to completing the following task: ~. What does “with a view to” signal?', 'A planned objective|A confirmed outcome|A contrast with his plan', '“With a view to” introduces an aim.'],
+      ['The team failed to ~ @, notwithstanding its careful preparation. What does “notwithstanding” mean?', 'In spite of|As a result of|In order to improve', '“Notwithstanding” is a formal concession marker meaning “despite”.']
+    ],
+    [
+      ['“Lina has ^ @, or so she says.” What does the ending suggest?', 'The writer reserves judgement about the claim|The writer verifies the claim|The writer quotes an order', '“Or so she says” distances the speaker from the truth of the claim.'],
+      ['“It is not inconceivable that they could ~ @.” Which paraphrase preserves the caution?', 'It is possible, though far from certain|It is bound to happen|It is unthinkable', 'The double negative leaves open a possibility without presenting it as likely.'],
+      ['“As if Sami had time to ~ @!” What is the most likely implication?', 'The speaker doubts that Sami has time|Sami has plenty of time|The speaker asks for the exact time', 'An exclamatory “as if” often signals disbelief.'],
+      ['“They managed to ~ @, if ‘managed’ is quite the word.” Why add the final clause?', 'To question how accurately the verb describes the outcome|To specify when the task happened|To guarantee the team succeeded fully', 'The speaker comments on the suitability of their own wording.'],
+      ['“Be that as it may, the team will ~ @.” What is the effect of the opening?', 'Set aside the previous point without settling it|Agree completely with the previous point|Give the sole cause of the plan', '“Be that as it may” moves the discussion on while allowing the previous point to stand.'],
+      ['“To say they had ^ @ would be to overstate the case.” What does the sentence imply?', 'The available facts warrant a weaker claim|The claim is a proven certainty|The task was never attempted', '“Overstate” flags a statement stronger than the evidence justifies.'],
+      ['“For all Lina’s efforts to ~ @, the plan fell through.” What does the initial phrase do?', 'Acknowledge effort while contrasting it with failure|Say the effort itself caused the failure|Explain that no effort was made', '“For all” means “despite” in this concessive construction.'],
+      ['“Sami did ~ @, albeit with some difficulty.” What is preserved by “albeit”?', 'The action happened, with a caveat about how|The action is denied|The action is made conditional on a future event', '“Albeit” adds a concession without cancelling the main assertion.'],
+      ['“Lina reported that Sami had ^ @, which is not to say she saw him do it.” Which inference does she block?', 'That her report implies first-hand observation|That an action was reported|That Sami was mentioned', '“Which is not to say” explicitly blocks a possible inference.'],
+      ['“They might well ~ @, but that is beside the point.” What does the speaker do?', 'Grants the possibility while denying its relevance|Denies the possibility|Makes it the deciding issue', '“Beside the point” concerns relevance, while “might well” grants plausibility.']
+    ]
+  ]
+};
+
+function makeQuestion(language, levelIndex, patternIndex, situationIndex) {
+  const [verb, participle, setting] = situations[language][situationIndex];
+  const [prompt, options, explanation] = patterns[language][levelIndex][patternIndex];
+  const substitutions = {'~': verb, '^': participle, '@': setting};
+  const expand = (value) => value.replace(/[~^@]/g, (symbol) => substitutions[symbol]);
+  const [correct, ...distractors] = options.split('|').map(expand);
+  return {
+    id: [levels[levelIndex], patternIndex, situationIndex].join('-'),
+    level: levels[levelIndex],
+    prompt: expand(prompt),
+    correct,
+    distractors,
+    explanation
+  };
+}
+
+const training = {};
+const placement = {};
+for (const language of ['fr', 'en']) {
+  training[language] = {};
+  placement[language] = [];
+  for (const [levelIndex, level] of levels.entries()) {
+    training[language][level] = situations[language].slice(0, 30).flatMap((_, roundIndex) =>
+      patterns[language][levelIndex].map((_, patternIndex) =>
+        makeQuestion(language, levelIndex, patternIndex, (roundIndex + 7 * patternIndex) % 30)
+      )
+    );
+    const start = levelIndex * 4;
+    const original = originalPlacement[language].slice(start, start + 4).map(([prompt, options, correct], index) => ({
+      id: level + '-original-' + index,
+      level,
+      prompt,
+      correct: options[correct],
+      distractors: options.filter((_, optionIndex) => optionIndex !== correct)
+    }));
+    const additional = Array.from({length: placementCounts[levelIndex] - original.length}, (_, index) =>
+      makeQuestion(language, levelIndex, (levelIndex + index * 3) % 10, 30 + index)
+    );
+    placement[language].push(...original, ...additional);
+  }
+}
+
+let profile = localStorage.getItem('lk_profile') || '';
+let language = '';
+let progress = null;
+const words = (french, english) => language === 'fr' ? french : english;
+const byId = (id) => document.getElementById(id);
+const esc = (value) => String(value).replace(/[&<>"']/g, (character) =>
+  ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character])
+);
+
+function read(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
+function profileKey() {
+  return 'lk_v2_' + language + '_' + profile.toLowerCase().normalize('NFC');
+}
+
+function save() {
+  localStorage.setItem(profileKey(), JSON.stringify(progress));
+}
+
+function welcome() {
+  app.innerHTML = `<h2>👋 Choisis ton prénom / Choose your name</h2>
+    <form id="profile-form">
+      <label for="name">Prénom / First name</label>
+      <p><input id="name" maxlength="25" required autocomplete="off"></p>
+      <button class="primary">🚀 C’est parti / Let’s go!</button>
+    </form>`;
+  byId('profile-form').onsubmit = (event) => {
+    event.preventDefault();
+    profile = byId('name').value.trim().slice(0, 25);
+    if (!profile) return;
+    localStorage.setItem('lk_profile', profile);
+    home();
+  };
+}
+
+function home() {
+  document.documentElement.lang = 'fr';
+  app.innerHTML = `<h2>✨ Bonjour / Hello, ${esc(profile)} !</h2>
+    <p>Choisis une langue / Choose a language</p>
+    <div class="row"><button id="fr">🇫🇷 Français</button><button id="en">🇬🇧 English</button></div>
+    <p><button id="change">👤 Changer de prénom / Change explorer</button></p>`;
+  byId('fr').onclick = () => choose('fr');
+  byId('en').onclick = () => choose('en');
+  byId('change').onclick = () => {
+    profile = '';
+    localStorage.removeItem('lk_profile');
+    welcome();
+  };
+}
+
+function choose(selected) {
+  language = selected;
+  document.documentElement.lang = selected;
+  progress = read(profileKey()) || {result: null, mastered: {}, run: null};
+  renderMenu();
+}
+
+function renderMenu() {
+  const {result, run} = progress;
+  const assessmentCopy = words(
+    '50 questions pour trouver ton niveau de départ. Les erreurs reviennent ensuite pour t’aider à progresser.',
+    '50 questions to find your starting level. Missed questions return afterwards to help you learn.'
+  );
+  const legacy = !result && read('lk_result_' + language);
+  app.innerHTML = `<h2>${words('🇫🇷 Ton aventure en français', '🇬🇧 Your English adventure')}</h2>
+    ${result ? `<p>${words('Niveau de départ indicatif', 'Suggested starting level')} <strong>${result.level}</strong>
+      · ${result.score}/50 ${words('au premier passage', 'on the first try')}</p>
+      <label for="level">${words('Niveau d’entraînement', 'Practice level')}</label>
+      <select id="level" style="font:inherit;padding:8px">${levels.map((level) =>
+        `<option${level === result.level ? ' selected' : ''}>${level}</option>`).join('')}</select>
+      <p id="practice-count"></p>` : `<p>${assessmentCopy}</p>
+      ${legacy ? `<p><small>${words('Le nouveau test est disponible.', 'The new assessment is available.')}</small></p>` : ''}`}
+    <p class="row">
+      ${run ? `<button class="primary" id="resume">${words('▶ Reprendre', '▶ Resume')}</button>` : ''}
+      ${!run && result ? `<button class="primary" id="practice">${words('Commencer une série', 'Start a round')}</button>` : ''}
+      ${!run ? `<button ${result ? '' : 'class="primary"'} id="assess">${result
+        ? words('Refaire le test de niveau', 'Retake the assessment')
+        : words('Commencer le test de niveau', 'Start the placement test')}</button>` : ''}
+    </p><button id="back">${words('← Accueil', '← Home')}</button>`;
+  byId('back').onclick = home;
+  if (run) byId('resume').onclick = renderQuestion;
+  if (byId('assess')) byId('assess').onclick = () => startRun('placement', '', placement[language]);
+  if (result) {
+    const select = byId('level');
+    const update = () => {
+      const count = (progress.mastered[select.value] || []).length;
+      byId('practice-count').textContent = words(`${count} / 300 exercices réussis`, `${count} / 300 exercises completed`);
+    };
+    select.onchange = update;
+    update();
+    if (!run) byId('practice').onclick = () => {
+      const level = select.value;
+      const pool = training[language][level];
+      const mastered = new Set(progress.mastered[level] || []);
+      const remaining = pool.filter((item) => !mastered.has(item.id));
+      startRun('practice', level, (remaining.length ? remaining : shuffle(pool)).slice(0, sessionSize));
+    };
+  }
+}
+
+function shuffle(items) {
+  const mixed = [...items];
+  for (let index = mixed.length - 1; index > 0; index--) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [mixed[index], mixed[other]] = [mixed[other], mixed[index]];
+  }
+  return mixed;
+}
+
+function startRun(mode, level, items) {
+  progress.run = {mode, level, ids: items.map((item) => item.id), cursor: 0, first: [], retry: [], corrected: 0};
+  save();
+  renderQuestion();
+}
+
+function upcoming(run) {
+  return run.cursor < run.ids.length ? run.ids[run.cursor] : run.retry[0];
+}
+
+function renderQuestion() {
+  const run = progress.run;
+  const retrying = run.cursor >= run.ids.length;
+  const id = upcoming(run);
+  if (!id) return completeRun();
+  const pool = run.mode === 'placement' ? placement[language] : training[language][run.level];
+  const item = pool.find((question) => question.id === id);
+  const options = shuffle([item.correct, ...item.distractors]);
+  const status = retrying ? words(`Révision · ${run.retry.length} à reprendre`, `Review · ${run.retry.length} to retry`)
+    : words(`Question ${run.cursor + 1} sur ${run.ids.length}`, `Question ${run.cursor + 1} of ${run.ids.length}`);
+  app.innerHTML = `<p class="tag">${status}</p>
+    <div class="progress" aria-hidden="true"><div style="width:${run.cursor / run.ids.length * 100}%"></div></div>
+    <h2 style="margin-top:16px">${esc(item.prompt)}</h2>
+    <div id="options"></div>
+    <p id="feedback" role="status"></p>
+    <div class="row">
+      <button class="primary" id="next" disabled>${words('Suivant →', 'Next →')}</button>
+      <button id="pause">${words('Mettre en pause', 'Pause')}</button>
+    </div>`;
+  byId('pause').onclick = renderMenu;
+  for (const option of options) {
+    const button = document.createElement('button');
+    button.className = 'choice';
+    button.textContent = option;
+    button.onclick = () => {
+      const correct = option === item.correct;
+      for (const choice of byId('options').children) {
+        choice.disabled = true;
+        if (choice.textContent === item.correct) choice.style.borderColor = '#16a06c';
+        else if (choice === button) choice.style.borderColor = '#e05266';
+      }
+      const feedback = byId('feedback');
+      feedback.textContent = correct ? words('🌟 Bravo !', '🌟 Well done!')
+        : words('Bonne réponse : ', 'Correct answer: ') + item.correct;
+      if (item.explanation) feedback.textContent += ' ' + item.explanation;
+      recordAnswer(run, item, correct, retrying);
+      byId('next').disabled = false;
+      byId('next').onclick = renderQuestion;
+      byId('pause').onclick = () => upcoming(run) ? renderMenu() : completeRun();
+    };
+    byId('options').appendChild(button);
+  }
+}
+
+function recordAnswer(run, item, correct, retrying) {
+  if (retrying) {
+    run.retry.shift();
+    if (correct) run.corrected++;
+  } else {
+    if (run.mode === 'placement') run.first.push(correct);
+    run.cursor++;
+  }
+  if (!correct) run.retry.push(item.id);
+  if (correct && run.mode === 'practice') {
+    const mastered = progress.mastered[run.level] || [];
+    if (!mastered.includes(item.id)) mastered.push(item.id);
+    progress.mastered[run.level] = mastered;
+  }
+  save();
+}
+
+function startingResult(first) {
+  let level = levels[0];
+  let offset = 0;
+  for (const [index, count] of placementCounts.entries()) {
+    const correct = first.slice(offset, offset + count).filter(Boolean).length;
+    if (correct / count < 0.7) break;
+    level = levels[index];
+    offset += count;
+  }
+  return {level, score: first.filter(Boolean).length};
+}
+
+function completeRun() {
+  const run = progress.run;
+  const diagnostic = run.mode === 'placement';
+  if (diagnostic) progress.result = startingResult(run.first);
+  progress.run = null;
+  save();
+  app.innerHTML = `<h2>🎉 ${words('Bravo', 'Well done')}, ${esc(profile)} !</h2>
+    ${diagnostic ? `<p>${words('Ton niveau de départ conseillé', 'Your suggested starting level')} <strong>${progress.result.level}</strong>.</p>
+      <p>${progress.result.score}/50 ${words('au premier passage', 'on the first try')}.</p>
+      <p><small>${words('Les reprises servent à apprendre. Le résultat est indicatif.', 'Retries help you learn. The placement result is indicative.')}</small></p>`
+      : `<p>${words('Série terminée', 'Round complete')} · ${run.ids.length} ${words('exercices réussis', 'exercises completed')}.</p>`}
+    ${run.corrected ? `<p>${words('Questions réussies après reprise', 'Questions mastered on retry')} <strong>${run.corrected}</strong></p>` : ''}
+    <button class="primary" id="finish">${words('Aller aux exercices', 'Go to practice')} →</button>`;
+  byId('finish').onclick = renderMenu;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+profile ? home() : welcome();
