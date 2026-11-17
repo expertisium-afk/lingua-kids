@@ -362,8 +362,12 @@ function renderMenu() {
       ${!run ? `<button ${result ? '' : 'class="primary"'} id="assess">${result
         ? words('Refaire le test de niveau', 'Retake the assessment')
         : words('Commencer le test de niveau', 'Start the placement test')}</button>` : ''}
-    </p><button id="back">${words('← Accueil', '← Home')}</button>`;
+    </p><p><button id="missions">${words('🎤 Mes missions', '🎤 My missions')}</button></p><button id="back">${words('← Accueil', '← Home')}</button>`;
   byId('back').onclick = home;
+  byId('missions').onclick = () => {
+    missionStage = !result ? 0 : Math.floor(levels.indexOf(result.level) / 2);
+    showMissions();
+  };
   if (run) byId('resume').onclick = renderQuestion;
   if (byId('assess')) byId('assess').onclick = () => startRun('placement', '', placement[language]);
   if (result) {
@@ -492,7 +496,197 @@ function completeRun() {
   byId('finish').onclick = renderMenu;
 }
 
+// Each activity pairs a concrete task with a sentence starter and an observable
+// criterion. Both languages share activity IDs; practice is tracked separately.
+const missions = {
+  fr: [
+    [
+      ['Parler et écouter', 'Mon objet en trois phrases',
+        'Choisis un objet près de toi. Dis à voix haute ce que c’est, à quoi il sert et pourquoi tu l’as choisi.',
+        'Voici… Il sert à… Je l’ai choisi parce que…',
+        'J’ai donné trois informations que quelqu’un pourrait redire.'],
+      ['Prise de parole', 'Devant une personne',
+        'Présente ton jeu préféré pendant 30 secondes à une personne de confiance. Tu peux d’abord répéter seul. Fais une pause entre deux idées.',
+        'Aujourd’hui, je vous parle de… Pour jouer, il faut…',
+        'J’ai commencé par annoncer mon sujet et j’ai parlé assez clairement pour être compris.'],
+      ['Empathie', 'Une place dans le jeu',
+        'Un enfant reste à côté du groupe. Il pourrait avoir envie de jouer ou préférer observer. Dis comment tu pourrais lui demander ce qu’il souhaite et respecter sa réponse.',
+        'Est-ce que tu aimerais… ? Tu peux aussi…',
+        'J’ai posé une question sans décider à sa place.'],
+      ['Probité', 'Le point en trop',
+        'Au jeu, on t’a compté un point de trop. Joue à voix haute le moment où tu le signales, même si cela change le résultat.',
+        'Je crois qu’il y a une erreur. Vérifions…',
+        'J’ai expliqué l’erreur et proposé de vérifier le score.']
+    ],
+    [
+      ['Questionnement', 'La phrase qui intrigue',
+        'Un camarade affirme que tout le monde préfère travailler en groupe. Pose deux questions ouvertes pour comprendre d’où vient cette idée, puis dis comment tu chercherais d’autres avis.',
+        'Qu’est-ce qui te fait dire cela ? Comment pourrait-on… ?',
+        'Mes questions permettent de découvrir quelque chose que je ne savais pas.'],
+      ['Esprit critique', 'Une annonce à vérifier',
+        'Un message dit que la bibliothèque ferme demain. Une affiche datée de la semaine dernière dit le contraire. Explique à voix haute ce qui est certain et comment vérifier avant d’en parler aux autres.',
+        'Je sais que… Il me manque… Je vérifierais auprès de…',
+        'J’ai distingué le message reçu d’une information confirmée.'],
+      ['Initiative', 'Mon premier petit pas',
+        'Choisis un problème du quotidien que tu peux aider à résoudre, comme une boîte de jeux mal rangée. Imagine deux solutions et propose un premier pas réalisable aujourd’hui.',
+        'Je pourrais… ou… Je commence par… parce que…',
+        'J’ai choisi une action concrète et dit quand je peux la faire.'],
+      ['Action sociale', 'Une étagère utile à tous',
+        'Avec l’accord d’un adulte, propose une idée pour rendre un espace partagé plus utile. Demande son avis à une personne qui l’utilise, puis essaie une petite amélioration si vous êtes d’accord. Prépare ton idée maintenant si l’action doit attendre.',
+        'Qui utilise cet espace ? De quoi a-t-on besoin ? Nous pourrions essayer…',
+        'J’ai prévu de consulter une personne concernée et de vérifier si le changement lui est utile.']
+    ],
+    [
+      ['Prise de parole', 'Convaincre en une minute',
+        'Présente une amélioration possible pour ton école, ta classe ou ton club. Donne un exemple, réponds à une objection probable et termine par une demande précise. Répète seul, puis présente-la à un petit groupe de confiance si tu le souhaites.',
+        'Je propose… Un exemple est… On pourrait objecter que… Je vous demande de…',
+        'Mon public peut redire mon idée, une raison et ce que je lui propose de faire.'],
+      ['Esprit critique', 'Une preuve qui pourrait me faire changer d’avis',
+        'Une vidéo affirme qu’écouter de la musique aide tous les enfants à se concentrer. Explique pourquoi une seule expérience ne suffit pas. Propose une comparaison simple et dis quel résultat te ferait changer d’avis.',
+        'Une limite est… Je comparerais… Je changerais d’avis si…',
+        'J’ai décrit un résultat qui pourrait contredire mon idée de départ.'],
+      ['Valeurs et probité', 'Aider sans effacer le mérite',
+        'Dans un travail de groupe, un ami veut supprimer le prénom d’une personne qui a pourtant contribué. Explique deux façons de répondre, en tenant compte de l’amitié et de l’équité. Puis joue la réponse que tu choisirais.',
+        'Je comprends que… En même temps… Une solution juste serait…',
+        'J’ai reconnu deux points de vue et proposé d’attribuer chaque contribution à la bonne personne.'],
+      ['Orientation et engagement', 'Trois rôles dans un projet',
+        'Imagine un projet solidaire, par exemple accueillir les nouveaux élèves. Choisis un rôle à essayer cette semaine avec un adulte de confiance : écouter les besoins, organiser une action ou présenter l’idée. Dis pourquoi il t’attire et comment tu sauras ce que tu as appris.',
+        'J’aimerais essayer le rôle de… Mon premier pas serait… Ensuite, je regarderai si…',
+        'J’ai choisi un rôle à expérimenter et un signe concret qui m’aidera à réfléchir à cette expérience.']
+    ]
+  ],
+  en: [
+    [
+      ['Speaking and listening', 'My object in three sentences',
+        'Pick an object nearby. Say what it is, what it is for, and why you chose it. Speak out loud.',
+        'This is… We use it to… I chose it because…',
+        'I gave three details that someone could repeat.'],
+      ['Public speaking', 'Speaking to one person',
+        'Talk about your favourite game for 30 seconds to someone you trust. Practise on your own first if you like. Pause between two ideas.',
+        'Today I’m talking about… To play, you need to…',
+        'I introduced my topic and spoke clearly enough to be understood.'],
+      ['Empathy', 'A place in the game',
+        'A child stays beside the group. They might want to join or might prefer to watch. Say how you could ask what they want and respect their answer.',
+        'Would you like to…? You can also…',
+        'I asked what they wanted and left the decision to them.'],
+      ['Integrity', 'One point too many',
+        'You have been given an extra point in a game. Act out how you would tell the others, even if it changes the result.',
+        'I think there’s a mistake. Let’s check…',
+        'I explained the mistake and offered to check the score.']
+    ],
+    [
+      ['Asking questions', 'The claim that made me curious',
+        'A classmate says everyone prefers working in groups. Ask two open questions to find out where that idea comes from. Say how you could hear other views.',
+        'What makes you say that? How could we…?',
+        'My questions could help me learn something new.'],
+      ['Critical thinking', 'Check an announcement',
+        'A message says the library will be closed tomorrow. A notice dated last week says otherwise. Explain out loud what you know and how you would check before telling anyone else.',
+        'I know that… I still need to find out… I would check with…',
+        'I explained which information had been confirmed and which still needed checking.'],
+      ['Initiative', 'My first small step',
+        'Choose an everyday problem you could help solve, such as messy game supplies. Think of two possible solutions and propose one step you could take today.',
+        'I could… or… I’ll start by… because…',
+        'I chose an action and said when I could take it.'],
+      ['Community action', 'A shelf everyone can use',
+        'With an adult’s permission, suggest a way to make a shared space more useful. Ask someone who uses it for their opinion. Try one small change if you agree. Prepare your idea now if the action has to wait.',
+        'Who uses this space? What do they need? We could try…',
+        'I planned to ask someone affected and check whether the change helped.']
+    ],
+    [
+      ['Public speaking', 'Make your case in one minute',
+        'Present an improvement for your school, class, or club. Give one example, respond to a likely objection, and end with a clear request. Rehearse alone, then speak to a small group you trust if you wish.',
+        'I propose… For example… Some people may say… I’m asking you to…',
+        'My audience could repeat my idea, one reason, and what I am asking them to do.'],
+      ['Critical thinking', 'What evidence could change my mind?',
+        'A video claims that listening to music helps every child concentrate. Explain why one experience is insufficient. Suggest a simple comparison and say what result would change your mind.',
+        'One limitation is… I would compare… I would change my mind if…',
+        'I described a result that could challenge my original idea.'],
+      ['Values and integrity', 'Give credit fairly',
+        'In a group project, a friend wants to leave out the name of someone who contributed. Explain two ways you could respond while considering friendship and fairness. Act out the response you would choose.',
+        'I understand that… At the same time… A fair solution would be…',
+        'I considered two points of view and gave credit to each person for their contribution.'],
+      ['Exploring roles and community action', 'Three roles in a project',
+        'Imagine a project that helps others, for example welcoming new pupils. Choose a role to try this week with a trusted adult: listening to people’s needs, organising an action, or presenting the idea. Explain why it interests you and how you would tell what you learned.',
+        'I’d like to try… My first step would be… Afterwards, I’ll look at whether…',
+        'I chose a role to try and one thing I could look for when reflecting on it.']
+    ]
+  ]
+};
+
+const missionStages = {
+  fr: ['Découvrir', 'S’exercer', 'Agir et argumenter'],
+  en: ['Explore', 'Practise', 'Act and make a case']
+};
+const missionStatuses = {
+  fr: {'try': 'À réessayer', 'help': 'Réalisé avec aide', 'alone': 'Réalisé seul'},
+  en: {'try': 'Try again', 'help': 'Done with help', 'alone': 'Done on my own'}
+};
+let missionStage = 0;
+
+function missionKey() {
+  return profileKey() + '_missions';
+}
+
+function showMissions() {
+  const entries = missions[language][missionStage];
+  const completed = read(missionKey()) || {};
+  app.innerHTML = `<h2>${words('🎤 Mes missions', '🎤 My missions')}</h2>
+    <p>${words('Parle à voix haute, essaie une petite action ou discute avec une personne de confiance.', 'Speak out loud, try a small action, or talk with someone you trust.')}</p>
+    <label for="mission-stage">${words('Parcours', 'Stage')}</label>
+    <select id="mission-stage" style="font:inherit;padding:8px">${missionStages[language].map((label, index) =>
+      `<option value="${index}"${index === missionStage ? ' selected' : ''}>${label}</option>`).join('')}</select>
+    ${entries.map(([topic, title], index) => {
+      const status = missionStatuses[language][completed[`${missionStage}-${index}`]];
+      return `<button class="choice" data-mission="${index}"><strong>${esc(title)}</strong>
+        <br><small>${esc(topic)}${status ? ' · ' + esc(status) : ''}</small></button>`;
+    }).join('')}
+    <button id="mission-exit">${words('← Retour au français', '← Back to English')}</button>`;
+  byId('mission-stage').onchange = (event) => {
+    missionStage = Number(event.target.value);
+    showMissions();
+    byId('mission-stage').focus();
+  };
+  app.querySelectorAll('[data-mission]').forEach((button) => {
+    button.onclick = () => showMission(Number(button.dataset.mission));
+  });
+  byId('mission-exit').onclick = renderMenu;
+}
+
+function showMission(index) {
+  const [topic, title, task, starter, criterion] = missions[language][missionStage][index];
+  const id = `${missionStage}-${index}`;
+  const completed = read(missionKey()) || {};
+  const selected = completed[id];
+  app.innerHTML = `<p class="tag">${esc(topic)}</p><h2 id="mission-title" tabindex="-1">${esc(title)}</h2>
+    <p>${esc(task)}</p>
+    <details><summary>${words('Des mots pour commencer', 'Words to get started')}</summary><p>${esc(starter)}</p></details>
+    <fieldset style="margin:16px 0">
+      <legend>${words('Comment ça s’est passé ?', 'How did it go?')}</legend>
+      <p>${esc(criterion)}</p>
+      <div class="row">${Object.entries(missionStatuses[language]).map(([value, label]) =>
+        `<button type="button" data-status="${value}" aria-pressed="${value === selected}"${value === selected ? ' class="primary"' : ''}>${label}</button>`).join('')}</div>
+      <p id="mission-feedback" role="status">${selected ? words('Bilan enregistré sur cet appareil.', 'Reflection saved on this device.') : ''}</p>
+    </fieldset>
+    <button id="missions-back">${words('← Toutes les missions', '← All missions')}</button>`;
+  byId('mission-title').focus();
+  byId('missions-back').onclick = showMissions;
+  app.querySelectorAll('[data-status]').forEach((button, _, buttons) => {
+    button.onclick = () => {
+      const current = read(missionKey()) || {};
+      current[id] = button.dataset.status;
+      localStorage.setItem(missionKey(), JSON.stringify(current));
+      buttons.forEach((choice) => {
+        const active = choice === button;
+        choice.setAttribute('aria-pressed', String(active));
+        choice.classList.toggle('primary', active);
+      });
+      byId('mission-feedback').textContent = words('Bilan enregistré sur cet appareil.', 'Reflection saved on this device.');
+    };
+  });
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
