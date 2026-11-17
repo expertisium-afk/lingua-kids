@@ -632,6 +632,10 @@ function showMissions() {
   const completed = read(missionKey()) || {};
   app.innerHTML = `<h2>${words('🎤 Mes missions', '🎤 My missions')}</h2>
     <p>${words('Parle à voix haute, essaie une petite action ou discute avec une personne de confiance.', 'Speak out loud, try a small action, or talk with someone you trust.')}</p>
+    <p class="row">
+      <button class="primary" id="open-debates">${words('💬 Mini-débats avec l’IA', '💬 Mini-debates with AI')}</button>
+      <button id="open-challenges">${words('⚡ Défis express', '⚡ Quick challenges')}</button>
+    </p>
     <label for="mission-stage">${words('Parcours', 'Stage')}</label>
     <select id="mission-stage" style="font:inherit;padding:8px">${missionStages[language].map((label, index) =>
       `<option value="${index}"${index === missionStage ? ' selected' : ''}>${label}</option>`).join('')}</select>
@@ -650,6 +654,8 @@ function showMissions() {
     button.onclick = () => showMission(Number(button.dataset.mission));
   });
   byId('mission-exit').onclick = renderMenu;
+  byId('open-debates').onclick = showDebates;
+  byId('open-challenges').onclick = showChallenges;
 }
 
 function showMission(index) {
@@ -685,8 +691,208 @@ function showMission(index) {
   });
 }
 
+const debateTopics = {
+  fr: [
+    'Faut-il laisser les élèves choisir une partie de leurs devoirs ?',
+    'Une cour de récréation devrait-elle avoir une zone calme ?',
+    'Une équipe doit-elle toujours choisir les joueurs les plus forts ?',
+    'Une bibliothèque doit-elle limiter le nombre de livres empruntés ?',
+    'Devrait-on donner les objets trouvés à une association après un certain délai ?',
+    'Un groupe doit-il décider à la majorité ou chercher un accord qui convienne à chacun ?'
+  ],
+  en: [
+    'Should pupils be allowed to choose some of their homework?',
+    'Should every playground have a quiet area?',
+    'Should a team always choose its strongest players?',
+    'Should libraries limit how many books each person can borrow?',
+    'Should unclaimed lost property be donated after a certain time?',
+    'Should a group vote by majority or look for a solution everyone can accept?'
+  ]
+};
+
+const quickChallenges = {
+  fr: [
+    ['🎤 Présente ton idée', 30, 'Donne ton avis sur une activité à organiser dans ta classe. Annonce ton idée, donne une raison et termine par une demande.',
+      'J’ai donné une idée.', 'J’ai expliqué pourquoi et dit ce que je demande.',
+      'Je propose un coin dessin. On pourrait s’y détendre entre deux cours. Peut-on l’essayer vendredi ?'],
+    ['🔎 Vérifie avant de partager', 60, 'Un message annonce que la sortie est annulée. Il ne donne ni date ni auteur. Dis deux choses à vérifier et auprès de qui.',
+      'J’ai repéré deux informations manquantes.', 'J’ai nommé une source à consulter.',
+      'Je vérifie la date et l’origine du message auprès de l’adulte qui organise la sortie.'],
+    ['💬 Défends l’autre point de vue', 60, 'Tu préfères travailler seul. Donne une raison sincère pour laquelle un camarade pourrait préférer travailler en équipe.',
+      'J’ai trouvé une vraie raison.', 'J’ai reformulé son avis sans me moquer.',
+      'En groupe, on peut expliquer une idée à quelqu’un qui n’a pas compris.'],
+    ['🤝 Demande plutôt que deviner', 30, 'Un camarade est silencieux pendant un jeu. Propose une question pour comprendre ce qu’il veut et imagine deux réponses possibles.',
+      'Ma question laisse un choix.', 'Mes deux réponses possibles sont différentes.',
+      'Tu veux continuer, faire une pause ou autre chose ? Il pourrait vouloir observer ou proposer une autre règle.'],
+    ['⚖️ Rends le mérite', 45, 'On te félicite pour un dessin préparé à deux. Dis comment tu remercies la personne qui te félicite en nommant ce que ton camarade a fait.',
+      'J’ai accepté le compliment.', 'J’ai cité une contribution précise de mon camarade.',
+      'Merci ! J’ai dessiné les personnages et mon camarade a créé le décor.'],
+    ['🌱 Lance un petit projet', 60, 'Un espace partagé est difficile à ranger. À qui peux-tu demander ce qui gêne ? Propose un essai simple et un moyen de voir s’il aide.',
+      'J’ai proposé un premier pas réalisable.', 'J’ai prévu comment vérifier s’il aide.',
+      'Je demande aux autres quels objets sont difficiles à retrouver. On essaie une boîte étiquetée et on voit vendredi si elle aide.'],
+    ['❓ Pose deux questions ouvertes', 45, 'Un ami dit qu’une règle de jeu est injuste. Pose deux questions auxquelles on ne peut pas répondre seulement par oui ou non.',
+      'J’ai posé deux questions ouvertes.', 'Mes questions aident à comprendre le problème.',
+      'Qu’est-ce qui te gêne dans cette règle ? Comment la modifierais-tu ?'],
+    ['🔄 Change d’avis avec une raison', 60, 'Quelqu’un affirme que la cour est trop bruyante pour lire. Dis ce qui pourrait confirmer cette idée, puis ce qui pourrait te faire changer d’avis.',
+      'J’ai proposé un moyen de vérifier.', 'J’ai dit quel résultat me ferait revoir mon avis.',
+      'J’essaierais de lire à deux endroits. Si un coin reste calme à plusieurs récréations, je nuancerais mon avis.']
+  ],
+  en: [
+    ['🎤 Pitch your idea', 30, 'Give your opinion about an activity for your class. Introduce your idea, give one reason, and finish with a request.',
+      'I gave one idea.', 'I explained why and made a clear request.',
+      'I suggest a drawing corner. It could help us relax. Could we try it on Friday?'],
+    ['🔎 Check before sharing', 60, 'A message says your trip is cancelled. It has no date or sender. Name two details to check and say who you would ask.',
+      'I spotted two missing details.', 'I named a source I could ask.',
+      'I would check when the message was written and who sent it with the adult organising the trip.'],
+    ['💬 Make the other case', 60, 'You prefer working alone. Give one fair reason why a classmate might prefer working in a team.',
+      'I gave a fair reason.', 'I described the view respectfully.',
+      'In a group, you can explain an idea to someone who did not understand it.'],
+    ['🤝 Ask instead of guessing', 30, 'A classmate is quiet during a game. Ask a question to find out what they want and imagine two possible answers.',
+      'My question left room for a choice.', 'I imagined two different answers.',
+      'Would you like to keep playing, take a break, or do something else? They might want to watch or suggest a new rule.'],
+    ['⚖️ Give credit', 45, 'Someone praises a drawing you made with a classmate. Thank them and explain what your classmate contributed.',
+      'I accepted the compliment.', 'I named a specific thing my classmate did.',
+      'Thank you! I drew the characters and my classmate designed the background.'],
+    ['🌱 Start a small project', 60, 'A shared space is hard to keep tidy. Who could tell you what gets in the way? Suggest one small change and a way to see if it helps.',
+      'I suggested a practical first step.', 'I planned how to check if it helps.',
+      'I would ask which things are hard to find. We could try a labelled box and check whether it helps on Friday.'],
+    ['❓ Ask two open questions', 45, 'A friend says a game rule is unfair. Ask two questions that need more than a yes or no answer.',
+      'I asked two open questions.', 'My questions help me understand the problem.',
+      'What bothers you about the rule? How would you change it?'],
+    ['🔄 Change your mind for a reason', 60, 'Someone says the playground is too loud for reading. Explain how you could check that and what might change your mind.',
+      'I suggested a way to check.', 'I said what result might change my mind.',
+      'I would try reading in two places. If one spot stayed quiet at several breaks, I would reconsider.']
+  ]
+};
+
+function debatePrompt(topic) {
+  return words(
+    `Tu es le partenaire de mini-débat d’un enfant accompagné par un adulte. Sujet du jour : « ${topic} ».
+Utilise le français, des phrases courtes et un ton encourageant. Mène le débat en trois tours, une question à la fois. Attends chaque réponse.
+1. Demande : « Pour, contre ou ça dépend ? » Puis demande à l’enfant de donner une raison dans la même réponse.
+2. Reformule fidèlement son avis en une phrase. Propose un contre-argument loyal, puis demande un exemple concret, une preuve ou une façon de vérifier.
+3. Demande à l’enfant de résumer l’autre point de vue et de dire s’il garde ou nuance son avis, avec une raison.
+Après sa dernière réponse, donne un point fort précis et une piste de progrès liée à son argumentation. N’attribue aucune note et ne choisis pas de gagnant. Ne demande aucune information personnelle. L’adulte peut transcrire les réponses dites à voix haute. Commence uniquement par le premier tour.`,
+    `You are a short-debate partner for a child supported by an adult. Today's topic: “${topic}”
+Use English, short sentences, and an encouraging tone. Run the debate in three turns, one question at a time. Wait for each answer.
+1. Ask whether they agree, disagree, or think it depends, and ask for one reason in the same answer.
+2. Restate their view fairly in one sentence. Give a fair counterargument, then ask for a concrete example, evidence, or a way to check.
+3. Ask them to summarise the other view and say whether they keep or qualify their opinion, with a reason.
+After their final answer, give one specific strength and one next step for their reasoning. Give no score and choose no winner. Ask for no personal information. The adult can type the answers spoken out loud. Start with the first turn only.`
+  );
+}
+
+function showDebates() {
+  app.innerHTML = `<h2>💬 ${words('Mini-débats avec l’IA', 'Mini-debates with AI')}</h2>
+    <p>${words('Choisis un sujet. Défends ton avis, écoute une objection et décide si tu veux nuancer ta réponse.', 'Choose a topic. Give your view, listen to an objection, and decide whether to qualify your answer.')}</p>
+    <label for="debate-topic">${words('Sujet du débat', 'Debate topic')}</label>
+    <select id="debate-topic" style="max-width:100%;font:inherit;padding:8px">${debateTopics[language].map((topic, index) =>
+      `<option value="${index}">${esc(topic)}</option>`).join('')}</select>
+    <p>${words('Avec un adulte, copie la consigne et colle-la dans ChatGPT. Tu peux répondre à voix haute et lui demander d’écrire ta réponse. Garde tes informations personnelles pour toi.', 'With an adult, copy the instructions and paste them into ChatGPT. You can answer aloud and have the adult type your answer. Keep personal details private.')}</p>
+    <details id="debate-instructions"><summary>${words('Voir la consigne à copier', 'See the instructions to copy')}</summary>
+      <textarea id="debate-prompt" readonly rows="6" style="box-sizing:border-box;width:100%;font:inherit" aria-label="${words('Consigne du débat', 'Debate instructions')}"></textarea>
+    </details>
+    <p class="row"><button class="primary" id="debate-copy">${words('Copier la consigne', 'Copy instructions')}</button>
+      <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" style="align-self:center">${words('Ouvrir ChatGPT ↗', 'Open ChatGPT ↗')}</a></p>
+    <p role="status" id="debate-status"></p><button id="debate-back">${words('← Toutes les missions', '← All missions')}</button>`;
+  const topic = byId('debate-topic');
+  const prompt = byId('debate-prompt');
+  const status = byId('debate-status');
+  topic.onchange = () => {
+    prompt.value = debatePrompt(debateTopics[language][topic.value]);
+    status.textContent = '';
+  };
+  topic.onchange();
+  byId('debate-copy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt.value);
+      status.textContent = words('Consigne copiée. Colle-la dans ChatGPT.', 'Instructions copied. Paste them into ChatGPT.');
+    } catch {
+      byId('debate-instructions').open = true;
+      prompt.focus();
+      prompt.select();
+      status.textContent = words('Copie le texte sélectionné.', 'Copy the selected text.');
+    }
+  };
+  byId('debate-back').onclick = showMissions;
+}
+
+function showChallenges() {
+  const progress = read(missionKey() + '_challenges') || {};
+  app.innerHTML = `<h2>⚡ ${words('Défis express', 'Quick challenges')}</h2>
+    <p>${words('Choisis un défi et réponds à voix haute. Le minuteur est facultatif.', 'Pick a challenge and answer aloud. The timer is optional.')}</p>
+    ${quickChallenges[language].map(([title, seconds], index) => `<button class="choice" data-challenge="${index}">
+      <strong>${esc(title)}</strong><br><small>${seconds} s${progress[index] ? words(' · Réalisé', ' · Completed') : ''}</small></button>`).join('')}
+    <button id="challenge-back">${words('← Toutes les missions', '← All missions')}</button>`;
+  app.querySelectorAll('[data-challenge]').forEach((button) => {
+    button.onclick = () => showChallenge(Number(button.dataset.challenge));
+  });
+  byId('challenge-back').onclick = showMissions;
+}
+
+function showChallenge(index) {
+  const [title, seconds, task, first, second, example] = quickChallenges[language][index];
+  const key = missionKey() + '_challenges';
+  const completed = Boolean(read(key)?.[index]);
+  app.innerHTML = `<h2 id="challenge-title" tabindex="-1">${esc(title)}</h2><p>${esc(task)}</p>
+    <div class="row"><button id="challenge-timer">${words('Démarrer le minuteur', 'Start timer')}</button><span id="challenge-time" style="align-self:center">${seconds} s</span></div>
+    <p role="status" id="challenge-status"></p>
+    <details><summary>${words('Voir un exemple après mon essai', 'See an example after trying')}</summary><p>${esc(example)}</p></details>
+    <fieldset style="margin:16px 0"><legend>${words('Mon bilan', 'My reflection')}</legend>
+      <p><label><input type="checkbox" id="challenge-first"${completed ? ' checked' : ''}> ${esc(first)}</label></p>
+      <p><label><input type="checkbox" id="challenge-second"${completed ? ' checked' : ''}> ${esc(second)}</label></p>
+      <button class="primary" id="challenge-save">${words('Enregistrer mon bilan', 'Save my reflection')}</button>
+      <p role="status" id="challenge-saved"></p>
+    </fieldset>
+    <button id="challenge-list">${words('← Tous les défis', '← All challenges')}</button>`;
+  byId('challenge-title').focus();
+  const timer = byId('challenge-timer');
+  const display = byId('challenge-time');
+  const status = byId('challenge-status');
+  let interval;
+  timer.onclick = () => {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+      timer.textContent = words('Redémarrer le minuteur', 'Restart timer');
+      return;
+    }
+    const finish = Date.now() + seconds * 1000;
+    status.textContent = '';
+    display.textContent = seconds + ' s';
+    timer.textContent = words('Arrêter le minuteur', 'Stop timer');
+    interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((finish - Date.now()) / 1000));
+      if (remaining && display.isConnected) {
+        display.textContent = remaining + ' s';
+        return;
+      }
+      clearInterval(interval);
+      interval = null;
+      if (!display.isConnected) return;
+      display.textContent = '0 s';
+      timer.textContent = words('Redémarrer le minuteur', 'Restart timer');
+      status.textContent = words('Temps écoulé. Tu peux finir ta phrase.', 'Time is up. You can finish your sentence.');
+    }, 250);
+  };
+  byId('challenge-save').onclick = () => {
+    const progress = read(key) || {};
+    const done = byId('challenge-first').checked && byId('challenge-second').checked;
+    progress[index] = done;
+    localStorage.setItem(key, JSON.stringify(progress));
+    byId('challenge-saved').textContent = done
+      ? words('Défi réalisé !', 'Challenge complete!')
+      : words('À réessayer quand tu veux.', 'Try again whenever you like.');
+  };
+  byId('challenge-list').onclick = () => {
+    clearInterval(interval);
+    showChallenges();
+  };
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
