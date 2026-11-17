@@ -1,4 +1,4 @@
-const CACHE = 'lingua-kids-v2';
+const CACHE = 'lingua-kids-v3';
 const ASSETS = ['./', './index.html', './app.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -19,8 +19,9 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(caches.open(CACHE).then(async (cache) => {
     try {
-      const response = await fetch(request);
-      if (response.ok && ASSETS.some((asset) => new URL(asset, self.registration.scope).href === request.url)) {
+      const isAppAsset = ASSETS.some((asset) => new URL(asset, self.registration.scope).href === request.url);
+      const response = await fetch(request, isAppAsset ? {cache: 'no-cache'} : undefined);
+      if (response.ok && isAppAsset) {
         await cache.put(request, response.clone());
       }
       return response;
