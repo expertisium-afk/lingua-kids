@@ -397,8 +397,103 @@ function shuffle(items) {
   return mixed;
 }
 
+// Each project is delivered in three steps inside a practice round.
+const roundProjects = {
+  fr: [
+    ['Mieux accueillir un nouvel élève',
+      'Imagine que tu arrives dans une école où tu ne connais personne. Qu’aimerais-tu savoir ? Prépare deux questions à poser à un camarade ou à un adulte de confiance.',
+      'Compare deux idées, par exemple un plan de l’école et un camarade qui fait visiter. Dis laquelle tu essaierais, pourquoi, et dans quel rôle tu veux aider.',
+      'Quel petit geste peux-tu essayer avec un adulte de confiance ? Si tu l’as essayé, qu’as-tu remarqué ? Sinon, à quel signe verras-tu s’il a aidé ?'],
+    ['Aménager un coin calme',
+      'Qui aurait envie d’un coin calme dans un espace partagé ? Quelles questions peux-tu poser pour comprendre ce qui lui serait utile ?',
+      'Propose deux aménagements simples. Choisis-en un et présente-le à voix haute en donnant une raison et en répondant à une objection possible.',
+      'Avec l’accord d’un adulte, quel petit changement pourrais-tu tester ? Comment sauras-tu s’il convient aux personnes qui utilisent cet espace ?'],
+    ['Organiser une boîte de jeux commune',
+      'Qu’est-ce qui rend une boîte de jeux difficile à utiliser ? Demande un avis ou prépare une question pour quelqu’un qui l’utilise.',
+      'Compare deux moyens de mieux ranger les jeux. Décris ce que tu ferais en premier et comment tu ferais participer les autres.',
+      'Si tu as testé ton idée, qu’as-tu observé et que changerais-tu ? Si tu n’as pas encore essayé, comment vérifieras-tu que les jeux sont plus faciles à trouver ?'],
+    ['Faire une affiche utile',
+      'Choisis une information utile à partager dans ta classe ou ton club. Qui en a besoin ? Auprès de qui pourrais-tu vérifier qu’elle est exacte ?',
+      'Propose deux façons de présenter cette information. Dis laquelle est la plus claire, puis demande à quelqu’un de reformuler ton message.',
+      'Qu’as-tu changé après le retour de la personne ? Si tu n’as pas encore pu le lui montrer, qu’aimerais-tu qu’elle puisse redire ?'],
+    ['Rendre un jeu plus accueillant',
+      'Un groupe joue toujours avec les mêmes personnes. Prépare une question pour comprendre ce qui aiderait quelqu’un à rejoindre le jeu, s’il le souhaite.',
+      'Imagine deux adaptations du jeu. Explique comment ton choix respecte les personnes qui ont envie de jouer et celles qui préfèrent regarder.',
+      'Si tu as testé une adaptation avec le groupe, qu’as-tu remarqué ? Sinon, comment demanderais-tu aux joueurs si elle leur convient ?'],
+    ['Réduire le gaspillage de papier',
+      'Repère une situation où du papier est jeté alors qu’il pourrait servir. Quelle question poserais-tu pour comprendre pourquoi ?',
+      'Compare deux idées, par exemple une boîte à brouillons ou un panneau d’idées de réutilisation. Présente ton choix et précise qui pourrait t’aider.',
+      'Quel essai peux-tu mener avec un adulte de confiance ? Comment vérifierais-tu en quelques jours que le papier est davantage réutilisé ?']
+  ],
+  en: [
+    ['Welcome a new pupil',
+      'Imagine arriving at a school where you know no one. What would you want to know? Prepare two questions for a classmate or an adult you trust.',
+      'Compare two ideas, such as a school map and a tour led by a classmate. Say which you would try, why, and what role you could play.',
+      'What small step could you try with an adult you trust? If you tried it, what did you notice? If you have yet to try it, how will you tell if it helped?'],
+    ['Make a quiet corner',
+      'Who might like a quiet corner in a shared space? What could you ask to find out what would help them?',
+      'Suggest two simple changes. Pitch one out loud, give a reason for it, and answer a possible objection.',
+      'What small change could you try with an adult’s permission? How will you find out whether it suits the people who use the space?'],
+    ['Organise a shared games box',
+      'What makes a shared games box hard to use? Ask someone who uses it for an opinion, or prepare a question for them.',
+      'Compare two ways to organise the games. Explain what you would do first and how you would involve others.',
+      'If you tested your idea, what did you notice and what would you change? Otherwise, how will you check if the games are easier to find?'],
+    ['Make a helpful poster',
+      'Choose a useful piece of information to share in your class or club. Who needs it? Who could confirm that it is correct?',
+      'Think of two ways to present it. Say which is clearer, then ask someone to repeat your message in their own words.',
+      'What did you change after hearing their feedback? If you have yet to show them your message, what would you like them to remember?'],
+    ['Make a game more welcoming',
+      'A group always plays with the same people. Prepare a question to find out what might help another person join, if they want to.',
+      'Think of two ways to adapt the game. Explain how your choice respects both those who want to play and those who would rather watch.',
+      'If you tried a change with the group, what did you notice? Otherwise, how would you ask the players whether it works for them?'],
+    ['Waste less paper',
+      'Find a situation where paper is thrown away even though it could be used again. What would you ask to understand why?',
+      'Compare two ideas, such as a scrap paper box and a display of ways to reuse paper. Explain your choice and who might help you.',
+      'What could you try with an adult you trust? How could you check after a few days whether more paper is being reused?']
+  ]
+};
+
+function nextProjectStep(run) {
+  if (!run.project) return null;
+  const milestones = [Math.ceil(run.ids.length * 0.3), Math.ceil(run.ids.length * 0.6), run.ids.length];
+  const step = run.project.step;
+  if (step < milestones.length && run.cursor >= milestones[step]) return step;
+  return null;
+}
+
+function renderProjectStep(run, step) {
+  const [title, ...prompts] = roundProjects[language][run.project.index];
+  const labels = words(
+    ['Observe et questionne', 'Propose et explique', 'Agis et fais ton bilan'],
+    ['Observe and ask', 'Suggest and explain', 'Act and reflect']
+  );
+  const starters = words(
+    ['J’aimerais savoir… Je demanderais…', 'Je pourrais… ou… Je choisis… parce que…', 'J’ai essayé… J’ai remarqué… / Je vais vérifier si…'],
+    ['I would like to find out… I would ask…', 'I could… or… My choice is… because…', 'I tried… I noticed… / I will check whether…']
+  );
+  app.innerHTML = `<p class="tag">${words('Mini-projet', 'Mini-project')} · ${step + 1}/3</p>
+    <h2 id="project-heading" tabindex="-1">${esc(title)}</h2>
+    <h3>${labels[step]}</h3>
+    <p>${esc(prompts[step])}</p>
+    <p>${words('Réponds à voix haute. Si tu veux essayer ton idée avant de poursuivre, tu peux mettre la série en pause.', 'Answer out loud. If you want to try your idea before moving on, you can pause the round.')}</p>
+    <details><summary>${words('Des mots pour commencer', 'Words to get started')}</summary><p>${starters[step]}</p></details>
+    <p class="row"><button class="primary" id="project-next">${words('Continuer la série →', 'Continue the round →')}</button>
+    <button id="project-pause">${words('Mettre en pause', 'Pause')}</button></p>`;
+  byId('project-heading').focus();
+  byId('project-pause').onclick = renderMenu;
+  byId('project-next').onclick = () => {
+    run.project.step++;
+    save();
+    renderQuestion();
+  };
+}
+
 function startRun(mode, level, items) {
   progress.run = {mode, level, ids: items.map((item) => item.id), cursor: 0, first: [], retry: [], corrected: 0};
+  if (mode === 'practice') {
+    const round = progress.projectRounds?.[level] || 0;
+    progress.run.project = {index: round % roundProjects[language].length, step: 0};
+  }
   save();
   renderQuestion();
 }
@@ -409,6 +504,8 @@ function upcoming(run) {
 
 function renderQuestion() {
   const run = progress.run;
+  const step = nextProjectStep(run);
+  if (step !== null) return renderProjectStep(run, step);
   const retrying = run.cursor >= run.ids.length;
   const id = upcoming(run);
   if (!id) return completeRun();
@@ -445,7 +542,7 @@ function renderQuestion() {
       recordAnswer(run, item, correct, retrying);
       byId('next').disabled = false;
       byId('next').onclick = renderQuestion;
-      byId('pause').onclick = () => upcoming(run) ? renderMenu() : completeRun();
+      byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null ? renderMenu() : completeRun();
     };
     byId('options').appendChild(button);
   }
@@ -484,6 +581,10 @@ function completeRun() {
   const run = progress.run;
   const diagnostic = run.mode === 'placement';
   if (diagnostic) progress.result = startingResult(run.first);
+  if (run.project) {
+    progress.projectRounds ??= {};
+    progress.projectRounds[run.level] = (progress.projectRounds[run.level] || 0) + 1;
+  }
   progress.run = null;
   save();
   app.innerHTML = `<h2>🎉 ${words('Bravo', 'Well done')}, ${esc(profile)} !</h2>
@@ -894,5 +995,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
 
