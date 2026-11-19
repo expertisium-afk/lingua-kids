@@ -501,8 +501,10 @@ function renderActivity(run, activity) {
     showChallenge(round % quickChallenges[language].length);
   } else {
     showDebates();
-    byId('debate-topic').value = round % debateTopics[language].length;
-    byId('debate-topic').onchange();
+    if (!byId('debate-topic').disabled) {
+      byId('debate-topic').value = round % debateTopics[language].length;
+      byId('debate-topic').onchange();
+    }
   }
   const navigation = app.querySelector('#missions-back, #challenge-list, #debate-back');
   const next = navigation.cloneNode(false);
@@ -924,7 +926,146 @@ After their final answer, give one specific strength and one next step for their
   );
 }
 
+// Set to the verified Worker URL after deploying the free Cloudflare service.
+const DEBATE_API = '';
+
+async function debateRequest(path, body) {
+  const token = localStorage.getItem('lk_ai_device');
+  const response = await fetch(DEBATE_API + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', ...(token ? {Authorization: 'Bearer ' + token} : {})},
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000)
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    const error = new Error(result.error || 'unavailable');
+    error.code = result.error;
+    throw error;
+  }
+  return result;
+}
+
+function showLiveDebates() {
+  const run = progress.run;
+  run.debate ||= {topic: 0, messages: [], turns: 0, draft: ''};
+  const debate = run.debate;
+  const paired = localStorage.getItem('lk_ai_paired') === 'yes';
+  app.innerHTML = `<h2>💬 ${words('Mon mini-débat', 'My mini-debate')}</h2>
+    <label for="debate-topic">${words('Sujet du débat', 'Debate topic')}</label>
+    <select id="debate-topic" style="max-width:100%;font:inherit;padding:8px" ${debate.messages.length ? 'disabled' : ''}>
+      ${debateTopics[language].map((topic, index) => `<option value="${index}" ${index === debate.topic ? 'selected' : ''}>${esc(topic)}</option>`).join('')}
+    </select>
+    <p><small>${words('Tes réponses sont envoyées à Cloudflare pour préparer les réponses de l’IA. Utilise des exemples inventés et garde tes informations personnelles pour toi.',
+      'Your answers are sent to Cloudflare to generate AI replies. Use invented examples and keep personal details private.')}</small></p>
+    <div id="debate-chat" aria-live="polite"></div>
+    ${paired ? `<form id="ai-answer-form">
+      <label for="ai-answer">${words('Ta réponse', 'Your answer')}</label>
+      <textarea id="ai-answer" maxlength="800" rows="3" required style="box-sizing:border-box;width:100%;font:inherit"></textarea>
+      <button class="primary" id="ai-send">${words('Répondre', 'Reply')}</button></form>`
+      : `<form id="ai-pair-form"><p>${words('Demande à un parent d’activer cet appareil avec son code.', 'Ask a parent to activate this device with its code.')}</p>
+        <label for="ai-code">${words('Code de cet appareil', 'Device code')}</label>
+        <input id="ai-code" type="password" autocomplete="off" required>
+        <button class="primary" id="ai-pair">${words('Activer', 'Activate')}</button></form>`}
+    <p id="ai-status" role="status"></p>
+    <button id="debate-back">${words('Continuer la série →', 'Continue the round →')}</button>`;
+  const topic = byId('debate-topic');
+  const chat = byId('debate-chat');
+  const status = byId('ai-status');
+  const paint = () => {
+    chat.innerHTML = `<p><strong>${words('À toi', 'Your turn')}</strong> — ${words(
+      'Pour, contre ou ça dépend ? Donne une raison.', 'Agree, disagree, or does it depend? Give one reason.')}</p>` +
+      debate.messages.map(message => `<p style="white-space:pre-wrap"><strong>${message.role === 'user' ? words('Toi', 'You') : 'IA'}</strong> — ${esc(message.content)}</p>`).join('');
+  };
+  topic.onchange = () => {
+    if (debate.messages.length) return;
+    debate.topic = Number(topic.value);
+    save();
+    paint();
+  };
+  paint();
+  byId('debate-back').onclick = renderQuestion;
+  if (!paired) {
+    byId('ai-pair-form').onsubmit = async event => {
+      event.preventDefault();
+      const button = byId('ai-pair');
+      button.disabled = true;
+      let token = localStorage.getItem('lk_ai_device');
+      if (!token) {
+        token = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('lk_ai_device', token);
+      }
+      try {
+        await debateRequest('/pair', {code: byId('ai-code').value.trim(), token});
+        localStorage.setItem('lk_ai_paired', 'yes');
+        if (progress.run === run && button.isConnected) renderQuestion();
+      } catch (error) {
+        if (button.isConnected) {
+          status.textContent = error.code === 'paired' ? words('Ce code est déjà associé à un autre navigateur.', 'This code is already linked to another browser.')
+            : words('Activation impossible. Vérifie le code ou réessaie plus tard.', 'Activation failed. Check the code or try again later.');
+          button.disabled = false;
+        }
+      }
+    };
+    return;
+  }
+  const form = byId('ai-answer-form');
+  const input = byId('ai-answer');
+  input.value = debate.draft;
+  input.oninput = () => {
+    debate.draft = input.value;
+    save();
+  };
+  if (debate.turns >= 3) {
+    form.hidden = true;
+    status.textContent = words('Débat terminé. Tu peux poursuivre ta série.', 'Debate complete. You can continue your round.');
+    return;
+  }
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const answer = input.value.trim();
+    if (!answer) return;
+    const button = byId('ai-send');
+    button.disabled = true;
+    input.disabled = true;
+    topic.disabled = true;
+    status.textContent = words('L’IA prépare sa réponse…', 'AI is preparing a reply…');
+    const messages = [...debate.messages, {role: 'user', content: answer}];
+    try {
+      const result = await debateRequest('/debate', {
+        language,
+        topic: debateTopics[language][debate.topic],
+        turn: debate.turns + 1,
+        messages
+      });
+      debate.messages = [...messages, {role: 'assistant', content: result.reply}];
+      debate.turns++;
+      debate.draft = '';
+      save();
+      if (progress.run !== run || !button.isConnected) return;
+      paint();
+      input.value = '';
+      status.textContent = debate.turns >= 3
+        ? words('Débat terminé. Tu peux poursuivre ta série.', 'Debate complete. You can continue your round.')
+        : words('À toi de répondre.', 'Your turn to reply.');
+      form.hidden = debate.turns >= 3;
+    } catch (error) {
+      if (!button.isConnected) return;
+      status.textContent = error.code === 'quota'
+        ? words('Quota du jour atteint. Reviens demain pour débattre. Tu peux poursuivre les exercices.', 'Daily limit reached. Come back tomorrow to debate. You can continue practising.')
+        : words('L’IA est momentanément indisponible. Tu peux réessayer ou poursuivre la série.', 'AI is temporarily unavailable. Retry or continue your round.');
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        input.disabled = false;
+        topic.disabled = debate.messages.length > 0;
+      }
+    }
+  };
+}
+
 function showDebates() {
+  if (DEBATE_API && progress.run?.mode === 'practice') return showLiveDebates();
   app.innerHTML = `<h2>💬 ${words('Mini-débats avec l’IA', 'Mini-debates with AI')}</h2>
     <p>${words('Choisis un sujet. Défends ton avis, écoute une objection et décide si tu veux nuancer ta réponse.', 'Choose a topic. Give your view, listen to an objection, and decide whether to qualify your answer.')}</p>
     <label for="debate-topic">${words('Sujet du débat', 'Debate topic')}</label>
@@ -1037,6 +1178,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
 
 
