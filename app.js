@@ -342,6 +342,61 @@ function choose(selected) {
   renderMenu();
 }
 
+// Progress rewards are local to this profile and shared across both languages.
+// Claim IDs prevent a replay or a corrected answer from being paid twice.
+function treasureKey() {
+  return 'lk_treasures_v1_' + profile.toLowerCase().normalize('NFC');
+}
+function treasureState() {
+  const stored = read(treasureKey());
+  return {claims: stored?.claims && typeof stored.claims === 'object' ? stored.claims : {},
+    reflection: Array.isArray(stored?.reflection) ? stored.reflection.slice(0, 3) : []};
+}
+function treasurePoints(state = treasureState()) {
+  return Object.values(state.claims).filter(value => value === 5).length * 5;
+}
+const treasureMilestones = [
+  [25, '🗝️', 'La clé de la curiosité', 'The curiosity key'],
+  [60, '🧭', 'La boussole des explorateurs', 'The explorer compass'],
+  [110, '💎', 'Le cristal des découvertes', 'The discovery crystal'],
+  [160, '🌟', 'L’étoile de la persévérance', 'The perseverance star'],
+  [200, '🏆', 'Le coffre des progrès', 'The progress chest']
+];
+function awardTreasure(run, item, correct) {
+  if (run.mode !== 'practice' || !correct) return '';
+  const state = treasureState();
+  const key = language + ':' + run.level + ':' + item.id;
+  if (Object.hasOwn(state.claims, key)) return words('Cet exercice a déjà donné ses points.', 'This exercise has already earned its points.');
+  const before = treasurePoints(state);
+  state.claims[key] = 5;
+  localStorage.setItem(treasureKey(), JSON.stringify(state));
+  const found = treasureMilestones.filter(([threshold]) => before < threshold && before + 5 >= threshold);
+  return words('+5 points de progression.', '+5 progress points.') + found.map(([, icon, fr, en]) =>
+    ' ' + icon + ' ' + words('Trésor découvert : ', 'Treasure discovered: ') + words(fr, en)).join('');
+}
+function treasurePanel() {
+  const state = treasureState();
+  const points = treasurePoints(state);
+  return `<section aria-label="${words('Trésors', 'Treasures')}"><h3>🗺️ ${words('Tes trésors', 'Your treasures')} · ${points} points</h3>
+    <p>${words('Un nouvel exercice réussi donne 5 points, même après une correction. Une erreur ne retire aucun point. Le test de niveau ne donne aucun point.', 'Each newly mastered exercise earns 5 points, including after correction. Mistakes never remove points. The placement test earns no points.')}</p>
+    <p>${treasureMilestones.map(([threshold, icon, fr, en]) => points >= threshold
+      ? `${icon} ${words(fr, en)}` : `🔒 ${threshold} points`).join(' · ')}</p>
+    ${points >= 200 ? `<details><summary>${words('🏆 200 points : mon bilan en famille', '🏆 200 points: my family reflection')}</summary>
+      <p>${words('Parle de tes progrès avec un adulte. Vous pouvez choisir ensemble un moment à partager ou une récompense occasionnelle. Aucun argent n’est versé par l’application.', 'Talk about your progress with an adult. Together you may choose a shared activity or an occasional reward. The app does not pay money.')}</p>
+      ${[words('Ce que j’ai appris', 'What I learned'), words('Une difficulté que j’ai surmontée', 'A difficulty I overcame'), words('Ce dont je suis fier ou fière', 'What I am proud of')].map((label, index) => `<p><label for="treasure-reflection-${index}">${label}</label><br><textarea id="treasure-reflection-${index}" maxlength="500" rows="2">${esc(state.reflection[index] || '')}</textarea></p>`).join('')}
+      <button id="treasure-save">${words('Enregistrer mon bilan', 'Save my reflection')}</button><p id="treasure-saved" role="status"></p></details>` : ''}
+    <p><small>${words('Points et bilan conservés dans ce navigateur, pour ce prénom. Ils ne sont pas synchronisés entre appareils.', 'Points and reflection are saved in this browser for this name. They do not sync between devices.')}</small></p></section>`;
+}
+function bindTreasurePanel() {
+  const button = byId('treasure-save');
+  if (button) button.onclick = () => {
+    const state = treasureState();
+    state.reflection = [0, 1, 2].map(index => byId('treasure-reflection-' + index).value.trim().slice(0, 500));
+    localStorage.setItem(treasureKey(), JSON.stringify(state));
+    byId('treasure-saved').textContent = words('Bilan enregistré.', 'Reflection saved.');
+  };
+}
+
 function renderMenu() {
   releaseAudio();
   const {result, run} = progress;
@@ -358,6 +413,7 @@ function renderMenu() {
         `<option${level === result.level ? ' selected' : ''}>${level}</option>`).join('')}</select>
       <p id="practice-count"></p>` : `<p>${assessmentCopy}</p>
       ${legacy ? `<p><small>${words('Le nouveau test est disponible.', 'The new assessment is available.')}</small></p>` : ''}`}
+    ${treasurePanel()}
     <p class="row">
       ${run ? `<button class="primary" id="resume">${words('▶ Reprendre', '▶ Resume')}</button>` : ''}
       ${!run && result ? `<button class="primary" id="practice">${words('Commencer une série', 'Start a round')}</button>` : ''}
@@ -365,6 +421,7 @@ function renderMenu() {
         ? words('Refaire le test de niveau', 'Retake the assessment')
         : words('Commencer le test de niveau', 'Start the placement test')}</button>` : ''}
     </p><button id="back">${words('← Accueil', '← Home')}</button>`;
+  bindTreasurePanel();
   byId('back').onclick = home;
   if (run) byId('resume').onclick = renderQuestion;
   if (byId('assess')) byId('assess').onclick = () => startRun('placement', '', placement[language]);
@@ -694,7 +751,7 @@ function renderQuestion() {
     <p id="question-audio-status" role="status"></p>
     ${listening ? `<details><summary>${words('Afficher le texte si le son est indisponible', 'Show text if audio is unavailable')}</summary><p>${esc(item.correct)}</p></details>` : ''}
     <div id="options"></div>
-    <p id="feedback" role="status"></p>
+    <p id="feedback" role="status"></p><p id="treasure-feedback" role="status"></p>
     <div class="row">
       <button class="primary" id="next" disabled>${words('Suivant →', 'Next →')}</button>
       <button id="pause">${words('Mettre en pause', 'Pause')}</button>
@@ -725,7 +782,8 @@ function renderQuestion() {
         correction.onclick = () => speakText(feedback.textContent, byId('question-audio-status'));
         feedback.after(correction);
       }
-      recordAnswer(run, item, correct, retrying);
+      const reward = recordAnswer(run, item, correct, retrying);
+      byId('treasure-feedback').textContent = reward;
       byId('next').disabled = false;
       byId('next').onclick = renderQuestion;
       byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null || pendingActivity(run) !== null || pendingPronunciation(run) !== null ? renderMenu() : completeRun();
@@ -735,6 +793,7 @@ function renderQuestion() {
 }
 
 function recordAnswer(run, item, correct, retrying) {
+  const reward = awardTreasure(run, item, correct);
   if (retrying) {
     run.retry.shift();
     if (correct) run.corrected++;
@@ -749,6 +808,7 @@ function recordAnswer(run, item, correct, retrying) {
     progress.mastered[run.level] = mastered;
   }
   save();
+  return reward;
 }
 
 function startingResult(first) {
@@ -779,7 +839,9 @@ function completeRun() {
       <p><small>${words('Le résultat est indicatif et repose sur tes 50 premières réponses.', 'This indicative result is based on your 50 initial answers.')}</small></p>`
       : `<p>${words('Série terminée', 'Round complete')} · ${run.ids.length} ${words('exercices réussis', 'exercises completed')}.</p>`}
     ${run.corrected ? `<p>${words('Questions réussies après reprise', 'Questions mastered on retry')} <strong>${run.corrected}</strong></p>` : ''}
+    ${diagnostic ? '' : treasurePanel()}
     <button class="primary" id="finish">${words('Aller aux exercices', 'Go to practice')} →</button>`;
+  bindTreasurePanel();
   byId('finish').onclick = renderMenu;
 }
 
@@ -1321,6 +1383,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
 
 
