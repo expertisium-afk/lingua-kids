@@ -320,6 +320,7 @@ function welcome() {
 }
 
 function home() {
+  releaseAudio();
   document.documentElement.lang = 'fr';
   app.innerHTML = `<h2>✨ Bonjour / Hello, ${esc(profile)} !</h2>
     <p>Choisis une langue / Choose a language</p>
@@ -342,6 +343,7 @@ function choose(selected) {
 }
 
 function renderMenu() {
+  releaseAudio();
   const {result, run} = progress;
   const assessmentCopy = words(
     '50 questions pour trouver ton niveau de départ. Réponds une seule fois à chaque question.',
@@ -542,9 +544,135 @@ function upcoming(run) {
   return run.cursor < run.ids.length ? run.ids[run.cursor] : run.mode === 'practice' ? run.retry[0] : undefined;
 }
 
+let releaseAudio = () => {};
+
+function speakText(text, status, rate = 0.9) {
+  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+    status.textContent = words('La lecture audio est indisponible dans ce navigateur.', 'Audio playback is unavailable in this browser.');
+    return;
+  }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.replace(/[_]+/g, ' … ').replace(/[🌟🍎🐘🐱🍌]/gu, ''));
+  utterance.lang = language === 'fr' ? 'fr-FR' : 'en-GB';
+  const voices = speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith(language));
+  utterance.voice = voices.find(voice => voice.localService) || voices[0] || null;
+  utterance.rate = rate;
+  utterance.onstart = () => { if (status.isConnected) status.textContent = words('Lecture en cours…', 'Playing…'); };
+  utterance.onend = () => { if (status.isConnected) status.textContent = ''; };
+  utterance.onerror = () => { if (status.isConnected) status.textContent = words('Lecture interrompue. Tu peux réessayer.', 'Playback stopped. You can try again.'); };
+  speechSynthesis.speak(utterance);
+}
+
+function pendingPronunciation(run) {
+  if (run.mode !== 'practice') return null;
+  const index = [4, 9].findIndex(milestone => run.cursor >= milestone && !(run.voiceDone || []).includes(milestone));
+  return index === -1 ? null : [4, 9][index];
+}
+
+function renderPronunciation(run, milestone) {
+  const item = training[language][run.level].find(question => question.id === run.ids[milestone - 1]);
+  const model = item.prompt.includes('___') ? item.prompt.replace('___', item.correct) : item.correct;
+  app.innerHTML = `<p class="tag">${words('🎙️ Prononciation', '🎙️ Pronunciation')}</p>
+    <h2>${words('Écoute, répète et compare', 'Listen, repeat, and compare')}</h2>
+    <p>${esc(model)}</p>
+    <div class="row"><button id="voice-model">${words('Écouter le modèle', 'Listen to the model')}</button>
+      <button id="voice-slow">${words('Écouter lentement', 'Listen slowly')}</button></div>
+    <p id="voice-status" role="status"></p>
+    <p>${words('Répète à voix haute. Tu peux enregistrer un essai de 20 secondes, puis te réécouter et comparer avec le modèle. Cet essai reste dans cette page et disparaît en la quittant.',
+      'Repeat out loud. You can record a 20-second attempt, replay it, and compare it with the model. This recording stays on this page and disappears when you leave it.')}</p>
+    <button id="voice-record">${words('M’enregistrer', 'Record myself')}</button>
+    <audio id="voice-playback" controls hidden style="display:block;max-width:100%;margin:12px 0" aria-label="${words('Mon essai', 'My recording')}"></audio>
+    <p><label><input id="voice-reflect" type="checkbox"> ${words('J’ai comparé les sons, le rythme et les pauses.', 'I compared the sounds, rhythm, and pauses.')}</label></p>
+    <p class="row"><button class="primary" id="voice-next">${words('Continuer la série →', 'Continue the round →')}</button>
+      <button id="voice-pause">${words('Mettre en pause', 'Pause')}</button></p>`;
+  const status = byId('voice-status');
+  const record = byId('voice-record');
+  const playback = byId('voice-playback');
+  let stream, recorder, timeout, objectUrl;
+  const stopTracks = () => stream?.getTracks().forEach(track => track.stop());
+  releaseAudio = () => {
+    clearTimeout(timeout);
+    if (recorder?.state === 'recording') recorder.stop();
+    stopTracks();
+    playback.pause();
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  };
+  const listen = rate => {
+    if (recorder?.state === 'recording') recorder.stop();
+    stopTracks();
+    playback.pause();
+    speakText(model, status, rate);
+  };
+  byId('voice-model').onclick = () => listen(0.9);
+  byId('voice-slow').onclick = () => listen(0.65);
+  if (!navigator.mediaDevices?.getUserMedia || !('MediaRecorder' in window)) {
+    record.disabled = true;
+    status.textContent = words('Tu peux répéter à voix haute. L’enregistrement est indisponible dans ce navigateur.', 'You can repeat out loud. Recording is unavailable in this browser.');
+  }
+  record.onclick = async () => {
+    if (recorder?.state === 'recording') {
+      recorder.stop();
+      stopTracks();
+      return;
+    }
+    record.disabled = true;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    playback.pause();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      if (!record.isConnected) { stopTracks(); return; }
+      const chunks = [];
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = () => {
+        clearTimeout(timeout);
+        stopTracks();
+        if (!record.isConnected) return;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(new Blob(chunks, {type: recorder.mimeType}));
+        playback.src = objectUrl;
+        playback.hidden = false;
+        record.textContent = words('Refaire mon essai', 'Try recording again');
+        status.textContent = words('Écoute ton essai, puis compare-le au modèle.', 'Replay your attempt, then compare it with the model.');
+      };
+      recorder.onerror = () => {
+        stopTracks();
+        status.textContent = words('L’enregistrement a été interrompu. Réessaie.', 'Recording was interrupted. Try again.');
+      };
+      recorder.start();
+      record.disabled = false;
+      record.textContent = words('Arrêter mon enregistrement', 'Stop recording');
+      status.textContent = words('Enregistrement en cours · 20 secondes maximum.', 'Recording · 20 seconds maximum.');
+      timeout = setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop();
+        stopTracks();
+      }, 20000);
+    } catch {
+      stopTracks();
+      if (record.isConnected) {
+        record.disabled = false;
+        status.textContent = words('Microphone indisponible ou autorisation refusée. Tu peux répéter à voix haute et continuer.', 'Microphone unavailable or permission denied. You can repeat out loud and continue.');
+      }
+    }
+  };
+  byId('voice-next').onclick = () => {
+    run.voiceDone ||= [];
+    if (!run.voiceDone.includes(milestone)) run.voiceDone.push(milestone);
+    save();
+    renderQuestion();
+  };
+  byId('voice-pause').onclick = renderMenu;
+}
+window.addEventListener('pagehide', () => releaseAudio());
+
 function renderQuestion() {
+  releaseAudio();
+  releaseAudio = () => { if ('speechSynthesis' in window) speechSynthesis.cancel(); };
   const run = progress.run;
   if (run.mode === 'placement' && run.cursor >= run.ids.length) return completeRun();
+  const pronunciation = pendingPronunciation(run);
+  if (pronunciation !== null) return renderPronunciation(run, pronunciation);
   const activity = pendingActivity(run);
   if (activity !== null) return renderActivity(run, activity);
   const step = nextProjectStep(run);
@@ -555,17 +683,25 @@ function renderQuestion() {
   const pool = run.mode === 'placement' ? placement[language] : training[language][run.level];
   const item = pool.find((question) => question.id === id);
   const options = shuffle([item.correct, ...item.distractors]);
+  const listening = run.mode === 'practice' && [1, 6].includes(run.ids.indexOf(item.id));
+  const prompt = listening ? words('Écoute, puis choisis ce que tu entends.', 'Listen, then choose what you hear.') : item.prompt;
   const status = retrying ? words(`Révision · ${run.retry.length} à reprendre`, `Review · ${run.retry.length} to retry`)
     : words(`Question ${run.cursor + 1} sur ${run.ids.length}`, `Question ${run.cursor + 1} of ${run.ids.length}`);
   app.innerHTML = `<p class="tag">${status}</p>
     <div class="progress" aria-hidden="true"><div style="width:${run.cursor / run.ids.length * 100}%"></div></div>
-    <h2 style="margin-top:16px">${esc(item.prompt)}</h2>
+    <h2 style="margin-top:16px">${esc(prompt)}</h2>
+    <p class="row"><button id="question-audio">${words('Écouter', 'Listen')}</button><button id="question-slow">${words('Écouter lentement', 'Listen slowly')}</button></p>
+    <p id="question-audio-status" role="status"></p>
+    ${listening ? `<details><summary>${words('Afficher le texte si le son est indisponible', 'Show text if audio is unavailable')}</summary><p>${esc(item.correct)}</p></details>` : ''}
     <div id="options"></div>
     <p id="feedback" role="status"></p>
     <div class="row">
       <button class="primary" id="next" disabled>${words('Suivant →', 'Next →')}</button>
       <button id="pause">${words('Mettre en pause', 'Pause')}</button>
     </div>`;
+  const sound = listening ? item.correct : item.prompt;
+  byId('question-audio').onclick = () => speakText(sound, byId('question-audio-status'));
+  byId('question-slow').onclick = () => speakText(sound, byId('question-audio-status'), 0.65);
   byId('pause').onclick = renderMenu;
   for (const option of options) {
     const button = document.createElement('button');
@@ -581,11 +717,18 @@ function renderQuestion() {
       const feedback = byId('feedback');
       feedback.textContent = correct ? words('🌟 Bravo !', '🌟 Well done!')
         : words('Bonne réponse : ', 'Correct answer: ') + item.correct;
-      if (item.explanation) feedback.textContent += ' ' + item.explanation;
+      if (item.explanation && !listening) feedback.textContent += ' ' + item.explanation;
+      if (!correct) {
+        const correction = document.createElement('button');
+        correction.id = 'correction-audio';
+        correction.textContent = words('Écouter la correction', 'Listen to the correction');
+        correction.onclick = () => speakText(feedback.textContent, byId('question-audio-status'));
+        feedback.after(correction);
+      }
       recordAnswer(run, item, correct, retrying);
       byId('next').disabled = false;
       byId('next').onclick = renderQuestion;
-      byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null || pendingActivity(run) !== null ? renderMenu() : completeRun();
+      byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null || pendingActivity(run) !== null || pendingPronunciation(run) !== null ? renderMenu() : completeRun();
     };
     byId('options').appendChild(button);
   }
@@ -1178,6 +1321,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
 
 
