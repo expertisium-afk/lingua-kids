@@ -344,8 +344,8 @@ function choose(selected) {
 function renderMenu() {
   const {result, run} = progress;
   const assessmentCopy = words(
-    '50 questions pour trouver ton niveau de départ. Les erreurs reviennent ensuite pour t’aider à progresser.',
-    '50 questions to find your starting level. Missed questions return afterwards to help you learn.'
+    '50 questions pour trouver ton niveau de départ. Réponds une seule fois à chaque question.',
+    '50 questions to find your starting level. Answer each question once.'
   );
   const legacy = !result && read('lk_result_' + language);
   app.innerHTML = `<h2>${words('🇫🇷 Ton aventure en français', '🇬🇧 Your English adventure')}</h2>
@@ -362,12 +362,8 @@ function renderMenu() {
       ${!run ? `<button ${result ? '' : 'class="primary"'} id="assess">${result
         ? words('Refaire le test de niveau', 'Retake the assessment')
         : words('Commencer le test de niveau', 'Start the placement test')}</button>` : ''}
-    </p><p><button id="missions">${words('🎤 Mes missions', '🎤 My missions')}</button></p><button id="back">${words('← Accueil', '← Home')}</button>`;
+    </p><button id="back">${words('← Accueil', '← Home')}</button>`;
   byId('back').onclick = home;
-  byId('missions').onclick = () => {
-    missionStage = !result ? 0 : Math.floor(levels.indexOf(result.level) / 2);
-    showMissions();
-  };
   if (run) byId('resume').onclick = renderQuestion;
   if (byId('assess')) byId('assess').onclick = () => startRun('placement', '', placement[language]);
   if (result) {
@@ -488,6 +484,48 @@ function renderProjectStep(run, step) {
   };
 }
 
+function pendingActivity(run) {
+  if (run.mode !== 'practice') return null;
+  const completed = run.activitiesDone || [];
+  const index = [2, 5, 8].findIndex((milestone, index) =>
+    run.cursor >= milestone && !completed.includes(index));
+  return index === -1 ? null : index;
+}
+
+function renderActivity(run, activity) {
+  const round = progress.projectRounds?.[run.level] || 0;
+  if (activity === 0) {
+    missionStage = Math.floor(levels.indexOf(run.level) / 2);
+    showMission(round % missions[language][missionStage].length);
+  } else if (activity === 1) {
+    showChallenge(round % quickChallenges[language].length);
+  } else {
+    showDebates();
+    byId('debate-topic').value = round % debateTopics[language].length;
+    byId('debate-topic').onchange();
+  }
+  const navigation = app.querySelector('#missions-back, #challenge-list, #debate-back');
+  const next = navigation.cloneNode(false);
+  next.id = 'activity-next';
+  next.className = 'primary';
+  next.textContent = words('Continuer la série →', 'Continue the round →');
+  navigation.replaceWith(next);
+  next.onclick = () => {
+    byId('challenge-timer')?.dispatchEvent(new Event('activity-end'));
+    run.activitiesDone ||= [];
+    run.activitiesDone.push(activity);
+    save();
+    renderQuestion();
+  };
+  const pause = document.createElement('button');
+  pause.textContent = words('Mettre en pause', 'Pause');
+  pause.onclick = () => {
+    byId('challenge-timer')?.dispatchEvent(new Event('activity-end'));
+    renderMenu();
+  };
+  next.after(pause);
+}
+
 function startRun(mode, level, items) {
   progress.run = {mode, level, ids: items.map((item) => item.id), cursor: 0, first: [], retry: [], corrected: 0};
   if (mode === 'practice') {
@@ -499,11 +537,14 @@ function startRun(mode, level, items) {
 }
 
 function upcoming(run) {
-  return run.cursor < run.ids.length ? run.ids[run.cursor] : run.retry[0];
+  return run.cursor < run.ids.length ? run.ids[run.cursor] : run.mode === 'practice' ? run.retry[0] : undefined;
 }
 
 function renderQuestion() {
   const run = progress.run;
+  if (run.mode === 'placement' && run.cursor >= run.ids.length) return completeRun();
+  const activity = pendingActivity(run);
+  if (activity !== null) return renderActivity(run, activity);
   const step = nextProjectStep(run);
   if (step !== null) return renderProjectStep(run, step);
   const retrying = run.cursor >= run.ids.length;
@@ -542,7 +583,7 @@ function renderQuestion() {
       recordAnswer(run, item, correct, retrying);
       byId('next').disabled = false;
       byId('next').onclick = renderQuestion;
-      byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null ? renderMenu() : completeRun();
+      byId('pause').onclick = () => upcoming(run) || nextProjectStep(run) !== null || pendingActivity(run) !== null ? renderMenu() : completeRun();
     };
     byId('options').appendChild(button);
   }
@@ -556,7 +597,7 @@ function recordAnswer(run, item, correct, retrying) {
     if (run.mode === 'placement') run.first.push(correct);
     run.cursor++;
   }
-  if (!correct) run.retry.push(item.id);
+  if (!correct && run.mode === 'practice') run.retry.push(item.id);
   if (correct && run.mode === 'practice') {
     const mastered = progress.mastered[run.level] || [];
     if (!mastered.includes(item.id)) mastered.push(item.id);
@@ -590,7 +631,7 @@ function completeRun() {
   app.innerHTML = `<h2>🎉 ${words('Bravo', 'Well done')}, ${esc(profile)} !</h2>
     ${diagnostic ? `<p>${words('Ton niveau de départ conseillé', 'Your suggested starting level')} <strong>${progress.result.level}</strong>.</p>
       <p>${progress.result.score}/50 ${words('au premier passage', 'on the first try')}.</p>
-      <p><small>${words('Les reprises servent à apprendre. Le résultat est indicatif.', 'Retries help you learn. The placement result is indicative.')}</small></p>`
+      <p><small>${words('Le résultat est indicatif et repose sur tes 50 premières réponses.', 'This indicative result is based on your 50 initial answers.')}</small></p>`
       : `<p>${words('Série terminée', 'Round complete')} · ${run.ids.length} ${words('exercices réussis', 'exercises completed')}.</p>`}
     ${run.corrected ? `<p>${words('Questions réussies après reprise', 'Questions mastered on retry')} <strong>${run.corrected}</strong></p>` : ''}
     <button class="primary" id="finish">${words('Aller aux exercices', 'Go to practice')} →</button>`;
@@ -951,6 +992,7 @@ function showChallenge(index) {
   const display = byId('challenge-time');
   const status = byId('challenge-status');
   let interval;
+  timer.addEventListener('activity-end', () => clearInterval(interval));
   timer.onclick = () => {
     if (interval) {
       clearInterval(interval);
@@ -995,6 +1037,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 profile ? home() : welcome();
+
 
 
 
