@@ -927,7 +927,7 @@ After their final answer, give one specific strength and one next step for their
 }
 
 // Set to the verified Worker URL after deploying the free Cloudflare service.
-const DEBATE_API = '';
+const DEBATE_API = 'https://lingua-kids.expertisium.workers.dev';
 
 async function debateRequest(path, body) {
   const token = localStorage.getItem('lk_ai_device');
